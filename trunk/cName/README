@@ -1,1 +1,3 @@
-把数据文件 cName_data.tar.bz2 解压到此目录。
+把数据文件 cName_data.tar.bz2 解压到此目录下的 data
+把图片文件 cName_pic.tar.bz2 解压到此目录下的 pic
+执行 ./cName.py

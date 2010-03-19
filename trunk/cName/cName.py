@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import gtk, webkit, os.path
+import gtk, webkit, os.path, re
+
+reg = re.compile(r'\{\{(.+?\|.+?\|.+?)\}\}')
+reg1 = re.compile(r'&lt;py&gt;')
+reg2 = re.compile(r'&lt;/py&gt;')
+cat = {
+'字体图片':'1b',
+'字源图片':'zy',
+'字形图片':'zx'
+}
 
 class WV(webkit.WebView):
     def __init__(self, html=''):
@@ -38,10 +47,19 @@ class MainWindow:
         f = os.path.join(self.runpath, 'data', '%s.wiki' % c)
         if os.path.exists(f):
             wiki = open(f).read()
+            wiki = reg.sub(self._pic, wiki)
+            wiki = reg1.sub('(', wiki)
+            wiki = reg2.sub(')', wiki)
             html = parse(wiki, showToc=False)
             self.wv.load_html_string(html, 'file:///')
         else:
             self.wv.open(os.path.join(self.runpath, 'err.html'))
+        
+    def _pic(self, m):
+        i1, i2, i3 = m.group(1).split('|')
+        f = '_'.join([cat[i1], i2, i3]) + '.gif'
+        f = os.path.join(self.runpath, 'pic', f)
+        return '<img src="%s"/>' % f
         
     def on_close(self, *args):
         gtk.main_quit()
