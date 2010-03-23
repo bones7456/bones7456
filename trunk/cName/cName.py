@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import gtk, webkit, os.path, re
+import gtk, webkit, os.path, re, random
 
 reg = re.compile(r'\{\{(.+?\|.+?\|.+?)\}\}')
 reg1 = re.compile(r'&lt;py&gt;')
@@ -42,6 +42,8 @@ class WV(webkit.WebView):
         return '<img src="%s"/>' % f    
 
 __WV__ = WV()
+import load_data
+__ALL_DATA__ = load_data.load()
 
 class Name(gtk.VBox):
     '''名字'''
@@ -60,7 +62,9 @@ class Name(gtk.VBox):
     def setn(self, char):
         self.label.set_label(__Label_style__ % char)
     def choose(self, o):
-        self.setn('哈')
+        self.setn(random.choice(list(__ALL_DATA__)))
+        __WV__.show(self.label.get_text().decode('utf8')[0])
+        
         
 class FName(gtk.VBox):
     '''姓'''
@@ -73,9 +77,10 @@ class FName(gtk.VBox):
         self.ev.add(self.label)
         self.ev.connect('button-press-event', 
             lambda o,e:__WV__.show(self.label.get_text().decode('utf8')[0]))
-        self.s = gtk.Entry()
+        self.s = gtk.Entry(max=2)
+        self.s.set_size_request(45,30)
         self.s.connect('activate',
-            lambda o:self.setn(o.get_text().decode('utf8')[0]))
+            lambda o:self.setn(o.get_text().decode('utf8')))
         self.pack_start(self.ev)
         self.pack_start(self.s,False)
     def setn(self, char):
