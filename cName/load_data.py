@@ -8,6 +8,7 @@
 import string, os.path
 
 def load():
+    print 'loading...'
     en = list(': \n')
     en.extend(string.ascii_letters)
     en.extend(string.digits)
