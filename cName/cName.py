@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import gtk, webkit, os.path, re, random
+import gtk, webkit, os.path, re
+from random import choice
 
 reg = re.compile(r'\{\{(.+?\|.+?\|.+?)\}\}')
 reg1 = re.compile(r'&lt;py&gt;')
@@ -20,8 +21,6 @@ class WV(webkit.WebView):
         if not html:
             html = os.path.join(self.runpath, 'welcome.html')
         self.open(html)
-    def open(self, html):
-        webkit.WebView.open(self, html)
     def show(self, c):
         from wikimarkup import parse
         f = os.path.join(self.runpath, 'data', '%s.wiki' % c)
@@ -43,7 +42,9 @@ class WV(webkit.WebView):
 
 __WV__ = WV()
 import load_data
-__ALL_DATA__ = load_data.load()
+__ALL__, __BU__, __HUA__, __YIN__ = load_data.load()
+__BLACK__, __BLACK_BU__ = load_data.black()
+__BLACK_REF__ = None
 
 class Name(gtk.VBox):
     '''名字'''
@@ -57,14 +58,40 @@ class Name(gtk.VBox):
             lambda o,e:__WV__.show(self.label.get_text().decode('utf8')[0]))
         self.b = gtk.Button('换字')
         self.b.connect('clicked', self.choose)
+        hbox = gtk.HBox()
+        black_this = gtk.Button('烂字')
+        black_this.connect('button-press-event',
+            lambda o,e:self.b_this(self.label.get_text().decode('utf8')[0]))
+        black_bu = gtk.Button('烂部首')
+        black_bu.connect('button-press-event',
+            lambda o,e:self.b_bu(self.label.get_text().decode('utf8')[0]))
+        hbox.pack_start(black_this)
+        hbox.pack_start(black_bu)
         self.pack_start(self.ev)
         self.pack_start(self.b, False)
+        self.pack_start(hbox, False)
     def setn(self, char):
         self.label.set_label(__Label_style__ % char)
     def choose(self, o):
-        self.setn(random.choice(list(__ALL_DATA__)))
+        s = set(__ALL__)
+        s -= set(__BLACK__)
+        for key in __BLACK_BU__:
+            if key in __BU__:
+                s -= set(__BU__[key])
+        print 'L:',len(s)
+        self.setn(choice(list(s)))
         __WV__.show(self.label.get_text().decode('utf8')[0])
-        
+    def b_this(self, c):
+        global __BLACK__
+        if c not in __BLACK__:
+            __BLACK__ += c
+        __BLACK_REF__()
+    def b_bu(self, c):
+        global __BLACK_BU__
+        bu, hua = load_data.parsechar(c)
+        if bu not in __BLACK_BU__:
+            __BLACK_BU__ += bu
+        __BLACK_REF__()
         
 class FName(gtk.VBox):
     '''姓'''
@@ -78,33 +105,76 @@ class FName(gtk.VBox):
         self.ev.connect('button-press-event', 
             lambda o,e:__WV__.show(self.label.get_text().decode('utf8')[0]))
         self.s = gtk.Entry(max=2)
-        self.s.set_size_request(45,30)
+        self.s.set_size_request(60,40)
         self.s.connect('activate',
             lambda o:self.setn(o.get_text().decode('utf8')))
+        label1 = gtk.Label('姓：')
         self.pack_start(self.ev)
-        self.pack_start(self.s,False)
+        self.pack_start(label1, False)
+        self.pack_start(self.s, False)
     def setn(self, char):
         self.label.set_label(__Label_style__ % char)
+        __WV__.show(self.label.get_text().decode('utf8')[0])
         
+class Filter(gtk.VBox):
+    '''过滤器'''
+    def __init__(self):
+        gtk.VBox.__init__(self)
+        self.pack_start(gtk.Label('过滤器：'))
+        self.pack_start(gtk.Label('烂字列表：'), False)
+        self.black_e = gtk.Entry()
+        self.black_e.connect('activate', self.text_change, 'zhi')
+        self.pack_start(self.black_e, False)
+        self.pack_start(gtk.Label('烂部首列表：'), False)
+        self.black_bu_e = gtk.Entry()
+        self.black_bu_e.connect('activate', self.text_change, 'bu')
+        self.pack_start(self.black_bu_e, False)
+        self.ref()
+    def ref(self):
+        self.black_e.set_text(__BLACK__)
+        self.black_bu_e.set_text(__BLACK_BU__)
+    def text_change(self, o, which):
+        global __BLACK__, __BLACK_BU__
+        if which == 'zhi':
+            __BLACK__ = o.get_text().decode('utf8')
+        else:
+            __BLACK_BU__ = o.get_text().decode('utf8')
+        #self.ref()
+
 class MainWindow:
     def __init__(self):
         self.window = gtk.Window()
         self.window.set_default_size(900, 600)
         self.window.set_title('cName')
-
-        self.hbox = gtk.HBox(False, 0)
         
+        self.hbox = gtk.HBox(False, 0)
         self.fn = FName()
         self.n1 = Name()
         self.n2 = Name()
         self.hbox.pack_start(self.fn, False, False)
         self.hbox.pack_start(self.n1, False, False)
         self.hbox.pack_start(self.n2, False, False)
+        
+        self.vbox = gtk.VBox(False, 0)
+        self.fliter = Filter()
+        global __BLACK_REF__
+        __BLACK_REF__ = self.fliter.ref
+        self.google = gtk.Button('这个不错，google一下看！')
+        self.google.connect('button-press-event', self.googleit)
+        self.vbox.pack_start(self.hbox)
+        self.vbox.pack_start(gtk.HSeparator(), False, False)
+        self.vbox.pack_start(self.fliter)
+        self.vbox.pack_start(gtk.HSeparator(), False, False)
+        self.vbox.pack_start(self.google, False, False)
+        
         sw = gtk.ScrolledWindow()
         sw.add(__WV__)
-        self.hbox.pack_start(sw)
+        
+        self.all = gtk.HBox(False, 0)
+        self.all.pack_start(self.vbox, False)
+        self.all.pack_start(sw)
 
-        self.window.add(self.hbox)
+        self.window.add(self.all)
         self.window.connect("delete_event", self.on_close)
         self.window.show_all()
         
@@ -112,7 +182,15 @@ class MainWindow:
         __WV__.show(obj.get_text().decode('utf8')[0])
         
     def on_close(self, *args):
+        global __BLACK__, __BLACK_BU__
+        load_data.save((__BLACK__, __BLACK_BU__))
         gtk.main_quit()
+    def googleit(self, o, e):
+        name = self.fn.label.get_text().decode('utf8')
+        name += self.n1.label.get_text().decode('utf8')
+        if '×' != self.n2.label.get_text().decode('utf8'):
+            name += self.n2.label.get_text().decode('utf8')
+        __WV__.open('http://www.google.com/search?q=%s' % name)
 
 def main():
     gtk.gdk.threads_init()
