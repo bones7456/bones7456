@@ -65,21 +65,58 @@ class Name(gtk.VBox):
         black_bu = gtk.Button('烂部首')
         black_bu.connect('button-press-event',
             lambda o,e:self.b_bu(self.label.get_text().decode('utf8')[0]))
-        hbox.pack_start(black_this)
         hbox.pack_start(black_bu)
+        hbox.pack_start(black_this)
+        hbox2 = gtk.HBox()
+        self.yin = gtk.Entry(max=2)
+        self.yin.set_size_request(30, 20)
+        self.yin.set_text('声母')
+        self.hua = gtk.Entry(max=2)
+        self.hua.set_size_request(30, 20)
+        self.hua.set_text('笔画')
+        self.zhi = gtk.Entry(max=1)
+        self.zhi.set_size_request(20, 20)
+        self.zhi.set_text('?')
+        hbox2.pack_start(self.yin)
+        hbox2.pack_start(self.hua)
+        hbox2.pack_start(self.zhi)
         self.pack_start(self.ev)
         self.pack_start(self.b, False)
         self.pack_start(hbox, False)
+        self.pack_start(hbox2, False)
     def setn(self, char):
         self.label.set_label(__Label_style__ % char)
     def choose(self, o):
-        s = set(__ALL__)
-        s -= set(__BLACK__)
-        for key in __BLACK_BU__:
-            if key in __BU__:
-                s -= set(__BU__[key])
-        print 'L:',len(s)
-        self.setn(choice(list(s)))
+        zhi = self.zhi.get_text().decode('utf8')
+        if zhi != '' and zhi != '?':
+            pass
+        else:
+            s = set(__ALL__)
+            s -= set(__BLACK__)
+            for key in __BLACK_BU__:
+                if key in __BU__:
+                    s -= set(__BU__[key])
+            try:
+                hua = int(self.hua.get_text().decode('utf8'))
+            except:
+                hua = 0
+            if hua:
+                s &= set(__HUA__[hua])
+            yin = self.yin.get_text().decode('utf8')
+            if yin not in ['无字', '声母', '']:
+                yins = set()
+                for key in __YIN__:
+                    if key.startswith(yin):
+                        yins |= set(__YIN__[key])
+                if len(yins) == 0:
+                    self.yin.set_text('无字')
+                else:
+                    s &= yins
+            if hua:
+                s &= set(__HUA__[hua])
+            print 'L:',len(s)
+            zhi = choice(list(s))
+        self.setn(zhi)
         __WV__.show(self.label.get_text().decode('utf8')[0])
     def b_this(self, c):
         global __BLACK__
@@ -105,11 +142,12 @@ class FName(gtk.VBox):
         self.ev.connect('button-press-event', 
             lambda o,e:__WV__.show(self.label.get_text().decode('utf8')[0]))
         self.s = gtk.Entry(max=2)
-        self.s.set_size_request(60,40)
+        self.s.set_size_request(60, 40)
         self.s.connect('activate',
             lambda o:self.setn(o.get_text().decode('utf8')))
         label1 = gtk.Label('姓：')
         self.pack_start(self.ev)
+        self.pack_start(gtk.Label(' '), False)
         self.pack_start(label1, False)
         self.pack_start(self.s, False)
     def setn(self, char):
