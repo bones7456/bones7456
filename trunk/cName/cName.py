@@ -129,9 +129,14 @@ class Name(gtk.VBox):
     def b_bu(self, c):
         global __BLACK_BU__
         bu, hua = load_data.parsechar(c)
-        if bu not in __BLACK_BU__:
-            __BLACK_BU__ += bu
-        __BLACK_REF__()
+        dialog = AskDialog('真的去掉“%s”这部首？这将阻止以下汉字：' % bu,
+            ''.join(__BU__[bu]))
+        response = dialog.run()
+        dialog.destroy()
+        if response == gtk.RESPONSE_YES:
+            if bu not in __BLACK_BU__:
+                __BLACK_BU__ += bu
+            __BLACK_REF__()
         
 class FName(gtk.VBox):
     '''姓'''
@@ -181,7 +186,15 @@ class Filter(gtk.VBox):
         else:
             __BLACK_BU__ = o.get_text().decode('utf8')
         #self.ref()
-
+        
+class AskDialog(gtk.MessageDialog):
+    '''退出确认对话框'''
+    def __init__(self, title, message):
+        gtk.MessageDialog.__init__(self, None, gtk.DIALOG_MODAL, 
+            gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO)
+        self.set_markup('<big><b>%s</b></big>' % title)
+        self.format_secondary_markup(message)
+        
 class MainWindow:
     def __init__(self):
         self.window = gtk.Window()
