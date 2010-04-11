@@ -127,15 +127,31 @@ class Name(gtk.VBox):
             __BLACK__ += c
         __BLACK_REF__()
     def b_bu(self, c):
-        global __BLACK_BU__
+        global __BLACK_BU__, __BLACK__
         bu, hua = load_data.parsechar(c)
-        dialog = AskDialog('真的去掉“%s”这部首？这将阻止以下汉字：' % bu,
-            ''.join(__BU__[bu]))
+        dialog = gtk.Dialog('真的去掉“%s”这部首？这将阻止以下汉字：' % bu,
+            None, gtk.DIALOG_MODAL, 
+            ('取消', 0, '干掉这个部首', 1, '干掉这些字', 2)
+        )
+        stock = gtk.image_new_from_stock(
+                    gtk.STOCK_DIALOG_QUESTION,
+                    gtk.ICON_SIZE_DIALOG)
+        dialog.vbox.pack_start(stock, False, False, 0)
+        e = gtk.Entry()
+        e.set_text(''.join(__BU__[bu]))
+        dialog.vbox.pack_start(e)
+        dialog.show_all()
         response = dialog.run()
+        text = e.get_text().decode('utf8')
         dialog.destroy()
-        if response == gtk.RESPONSE_YES:
+        if response == 1:
             if bu not in __BLACK_BU__:
                 __BLACK_BU__ += bu
+            __BLACK_REF__()
+        elif response == 2:
+            for char in text:
+                if char not in __BLACK__:
+                    __BLACK__ += char
             __BLACK_REF__()
         
 class FName(gtk.VBox):
@@ -186,14 +202,6 @@ class Filter(gtk.VBox):
         else:
             __BLACK_BU__ = o.get_text().decode('utf8')
         #self.ref()
-        
-class AskDialog(gtk.MessageDialog):
-    '''退出确认对话框'''
-    def __init__(self, title, message):
-        gtk.MessageDialog.__init__(self, None, gtk.DIALOG_MODAL, 
-            gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO)
-        self.set_markup('<big><b>%s</b></big>' % title)
-        self.format_secondary_markup(message)
         
 class MainWindow:
     def __init__(self):
