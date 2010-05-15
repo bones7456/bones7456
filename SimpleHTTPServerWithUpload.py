@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """Simple HTTP Server With Upload.
 
 This module builds on BaseHTTPServer by implementing the standard GET
