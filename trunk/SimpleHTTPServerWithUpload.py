@@ -108,7 +108,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return (False, "Can't create file to write, do you have permission to write?")
                 
         preline = self.rfile.readline()
-        remainbytes -= len(line)
+        remainbytes -= len(preline)
         while remainbytes > 0:
             line = self.rfile.readline()
             remainbytes -= len(line)
