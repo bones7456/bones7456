@@ -255,7 +255,7 @@ class MainWindow:
         name += self.n1.label.get_text().decode('utf8')
         if '×' != self.n2.label.get_text().decode('utf8'):
             name += self.n2.label.get_text().decode('utf8')
-        __WV__.open('http://www.google.com/search?q=%s' % name)
+        __WV__.open('https://www.google.com/search?q=%s' % name)
 
 def main():
     gtk.gdk.threads_init()
