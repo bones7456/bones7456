@@ -3,6 +3,12 @@
 import gtk, webkit, os.path, re
 from random import choice
 
+#如果你的姓在 胡、温、贾、李、习、贺、周、吴 内的话，很不幸，
+#google会被重置，打开下面3行，需要你有socket代理。 FuckGFW
+import socks, socket
+socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, "127.0.0.1", 7777)
+socket.socket = socks.socksocket
+
 reg = re.compile(r'\{\{(.+?\|.+?\|.+?)\}\}')
 reg1 = re.compile(r'&lt;py&gt;')
 reg2 = re.compile(r'&lt;/py&gt;')
