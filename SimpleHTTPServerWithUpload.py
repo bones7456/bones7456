@@ -72,7 +72,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         f.write(info)
         f.write("<br><a href=\"%s\">back</a>" % self.headers['referer'])
         f.write("<hr><small>Powered By: bones7456, check new version at ")
-        f.write("<a href=\"http://li2z.cn/?s=SimpleHTTPServerWithUpload\">")
+        f.write("<a href=\"http://luy.li/?s=SimpleHTTPServerWithUpload\">")
         f.write("here</a>.</small></body>\n</html>\n")
         length = f.tell()
         f.seek(0)
