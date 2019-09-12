@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """Simple HTTP Server With Upload.
 
@@ -21,10 +21,20 @@ import cgi
 import shutil
 import mimetypes
 import re
+import signal
+import sys
+import netifaces
+import subprocess
+
 try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
+
+def signal_handler(signal, frame):
+    print 'Exit'
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
 
 
 class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -287,10 +297,39 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         '.h': 'text/plain',
         })
 
+def get_ip():
+    ip_list = []
+    for interface in netifaces.interfaces():
+        addr = netifaces.ifaddresses(interface)
+        if netifaces.AF_INET in addr:
+            for link in addr[netifaces.AF_INET]:
+                ip_list.append([interface, link['addr']])
+    return ip_list
 
-def test(HandlerClass = SimpleHTTPRequestHandler,
-         ServerClass = BaseHTTPServer.HTTPServer):
-    BaseHTTPServer.test(HandlerClass, ServerClass)
+def print_qrcode(ip, port):
+    try:
+        qrcode = subprocess.check_output(['qrencode', '-t', 'ANSIUTF8', 'http://' + ip + ':' + port])
+        print qrcode
+    except OSError:
+        warning = '\033[93m'
+        info = '\033[95m'
+        end = '\033[0m'
+        print warning + "[WARNING]" + end + " qrcode needs " + warning + "qrencode" + end \
+            + " eg: " + info + "apt install qrencode" + end
+
+def run_server(port):
+    server_class = BaseHTTPServer.HTTPServer
+    handler_class = SimpleHTTPRequestHandler
+    server_address = ('', port)
+    httpd = server_class(server_address, handler_class)
+    httpd.serve_forever()
 
 if __name__ == '__main__':
-    test()
+    addrs = get_ip()
+    port = 8000
+    for addr in addrs:
+        print '{0:15} http://{1}:{2}'.format(addr[0], addr[1], port)
+        if re.match(r"lo", addr[0]):
+            continue
+        print_qrcode(addr[1], str(port))
+    run_server(port)
