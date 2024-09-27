@@ -265,7 +265,9 @@
                     const p3 = positions[k];
 
                     if (isEquilateralTriangle(p1, p2, p3)) {
-                        count++;
+                        if (advancedModeCheckbox.checked || isConnectedTriangle(p1, p2, p3)) {
+                            count++;
+                        }
                     }
                 }
             }
@@ -297,10 +299,26 @@
             if (!occupied[key]) {
                 ctx.beginPath();
                 ctx.arc(vertex.x, vertex.y, sideLength * 0.1, 0, 2 * Math.PI);
-                ctx.fillStyle = 'rgba(128, 128, 128, 0.5)';
+                ctx.fillStyle = '#fff'; // 填充颜色改为白色
+                ctx.strokeStyle = '#000'; // 添加黑色边框
                 ctx.fill();
+                ctx.stroke(); // 绘制边框
             }
         }
         ctx.restore();
     }
+
+    const advancedModeCheckbox = document.getElementById('advancedMode');
+
+    // 添加新函数：检查三角形的边是否有线连接
+    function isConnectedTriangle(p1, p2, p3) {
+        return (
+            Math.abs(p1.y - p2.y) < 1e-6 ||
+            Math.abs(p1.y - p3.y) < 1e-6 ||
+            Math.abs(p2.y - p3.y) < 1e-6
+        );
+    }
+
+    // 添加事件监听器，以便在切换高级模式时重新计算三角形数量
+    advancedModeCheckbox.addEventListener('change', updateTriangleCounts);
 })();

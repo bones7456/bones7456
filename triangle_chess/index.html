@@ -21,6 +21,9 @@
             display: inline-block;
             width: 200px;
         }
+        .checkbox-container {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -37,6 +40,11 @@
         <span><strong>黑方正三角形数：</strong><span id="blackTriangles">0</span></span>
         <span><strong>白方正三角形数：</strong><span id="whiteTriangles">0</span></span>
     </p>
+    <div class="checkbox-container">
+        <label>
+            <input type="checkbox" id="advancedMode"> 高级模式（计算任意角度的正三角形）
+        </label>
+    </div>
 </div>
 <script src="game.js"></script>
 </body>
