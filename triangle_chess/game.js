@@ -68,6 +68,7 @@
 
     // 生成并存储所有交点（顶点）
     generateVertices();
+    drawAvailablePositions();
 
     // 更新顶点总数显示
     verticesCountElement.textContent = vertices.length.toString();
@@ -180,6 +181,9 @@
         // 标记该顶点被当前玩家占据
         occupied[key] = currentPlayer;
 
+        // 重绘可落子位置
+        drawAvailablePositions();
+
         // 更新已占顶点数显示
         occupiedCountElement.textContent = Object.keys(occupied).length.toString();
 
@@ -284,5 +288,19 @@
     // 计算两点之间的距离
     function distance(p1, p2) {
         return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    }
+
+    // 添加绘制可落子位置的函数
+    function drawAvailablePositions() {
+        for (const vertex of vertices) {
+            const key = `${vertex.x},${vertex.y}`;
+            if (!occupied[key]) {
+                ctx.beginPath();
+                ctx.arc(vertex.x, vertex.y, sideLength * 0.1, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(128, 128, 128, 0.5)';
+                ctx.fill();
+            }
+        }
+        ctx.restore();
     }
 })();
