@@ -28,17 +28,6 @@
     blackTrianglesElement.textContent = '0';
     whiteTrianglesElement.textContent = '0';
 
-    // 绘制大圆
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
-    ctx.stroke();
-
-    // 将绘图限制在大圆内
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
-    ctx.clip();
-
     // 绘制一组平行线的函数
     function drawParallelLines(angle) {
         ctx.save();
@@ -56,24 +45,6 @@
         }
         ctx.restore();
     }
-
-    // 绘制水平线
-    drawParallelLines(0);
-
-    // 绘制与水平成 60 度的平行线
-    drawParallelLines(60);
-
-    // 绘制与水平成 120 度的平行线
-    drawParallelLines(-60);
-
-    // 生成并存储所有交点（顶点）
-    generateVertices();
-    drawAvailablePositions();
-
-    // 更新顶点总数显示
-    verticesCountElement.textContent = vertices.length.toString();
-
-    ctx.restore(); // 恢复剪切区域
 
     // 添加点击事件监听器
     canvas.addEventListener('click', handleCanvasClick);
@@ -233,14 +204,12 @@
 
     // 游戏结束处理函数
     function endGame() {
-        alert('游戏结束，正在统计结果...');
-
         // 统计结果已在 updateTriangleCounts 中更新
         const blackTriangles = parseInt(blackTrianglesElement.textContent, 10);
         const whiteTriangles = parseInt(whiteTrianglesElement.textContent, 10);
 
-        // 显示结果
-        let resultMessage = `黑方组成的正三角形数量：${blackTriangles}\n白方组成的正三角形数量：${whiteTriangles}\n`;
+        // 准备结果消息
+        let resultMessage = `游戏结束！\n黑方组成的正三角形数量：${blackTriangles}\n白方组成的正三角形数量：${whiteTriangles}\n`;
         if (blackTriangles > whiteTriangles) {
             resultMessage += '黑方获胜！';
         } else if (whiteTriangles > blackTriangles) {
@@ -248,7 +217,11 @@
         } else {
             resultMessage += '平局！';
         }
-        alert(resultMessage);
+
+        // 更新并显示结果元素
+        const resultElement = document.getElementById('gameResult');
+        resultElement.textContent = resultMessage;
+        resultElement.style.display = 'block';
     }
 
     // 统计玩家能够组成的正三角形数量
@@ -321,4 +294,57 @@
 
     // 添加事件监听器，以便在切换高级模式时重新计算三角形数量
     advancedModeCheckbox.addEventListener('change', updateTriangleCounts);
+
+    const restartButton = document.getElementById('restartButton');
+
+    // 在初始化游戏状态的代码块之后添加以下函数
+    function initializeGame() {
+        // 清空棋盘
+        ctx.clearRect(0, 0, width, height);
+        
+        // 重置游戏状态
+        vertices.length = 0;
+        Object.keys(occupied).forEach(key => delete occupied[key]);
+        currentPlayer = 'black';
+
+        // 重新绘制棋盘
+        drawBoard();
+        generateVertices();
+        drawAvailablePositions();
+
+        // 更新显示信息
+        verticesCountElement.textContent = vertices.length.toString();
+        occupiedCountElement.textContent = '0';
+        currentPlayerElement.textContent = '黑方';
+        blackTrianglesElement.textContent = '0';
+        whiteTrianglesElement.textContent = '0';
+
+        // 隐藏游戏结果
+        const resultElement = document.getElementById('gameResult');
+        resultElement.style.display = 'none';
+    }
+
+    function drawBoard() {
+        // 绘制大圆
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // 将绘图限制在大圆内
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
+        ctx.clip();
+
+        // 绘制三组平行线
+        drawParallelLines(0);
+        drawParallelLines(60);
+        drawParallelLines(-60);
+    }
+
+    // 添加重新开局按钮的事件监听器
+    restartButton.addEventListener('click', initializeGame);
+
+    // 在文件末尾调用initializeGame函数来初始化游戏
+    initializeGame();
 })();

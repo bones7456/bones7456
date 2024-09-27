@@ -4,48 +4,71 @@
     <meta charset="UTF-8">
     <title>双人棋类游戏棋盘</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+        #gameContainer {
+            display: flex;
+            gap: 20px;
+        }
         canvas {
             border: 1px solid black;
-            display: block;
-            margin: 0 auto;
             background-color: #fff;
         }
-        #debugInfo {
-            width: 800px;
-            margin: 20px auto;
-            font-family: Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.5;
+        #controlPanel {
+            width: 300px;
         }
         #debugInfo span {
             display: inline-block;
-            width: 200px;
+            width: 100%;
+            margin-bottom: 10px;
         }
         .checkbox-container {
-            margin-top: 10px;
+            margin-top: 20px;
+        }
+        #restartButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #gameResult {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 2px solid black;
+            z-index: 1000;
+            display: none;
         }
     </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="800" height="800"></canvas>
-<div id="debugInfo">
-    <p>
-        <span><strong>顶点总数：</strong><span id="verticesCount">0</span></span>
-        <span><strong>已占顶点：</strong><span id="occupiedCount">0</span></span>
-    </p>
-    <p>
-        <span><strong>当前玩家：</strong><span id="currentPlayer">黑方</span></span>
-    </p>
-    <p>
-        <span><strong>黑方正三角形数：</strong><span id="blackTriangles">0</span></span>
-        <span><strong>白方正三角形数：</strong><span id="whiteTriangles">0</span></span>
-    </p>
-    <div class="checkbox-container">
-        <label>
-            <input type="checkbox" id="advancedMode"> 高级模式（计算任意角度的正三角形）
-        </label>
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="800"></canvas>
+    <div id="controlPanel">
+        <div id="debugInfo">
+            <p><span><strong>顶点总数：</strong><span id="verticesCount">0</span></span></p>
+            <p><span><strong>已占顶点：</strong><span id="occupiedCount">0</span></span></p>
+            <p><span><strong>当前玩家：</strong><span id="currentPlayer">黑方</span></span></p>
+            <p><span><strong>黑方正三角形数：</strong><span id="blackTriangles">0</span></span></p>
+            <p><span><strong>白方正三角形数：</strong><span id="whiteTriangles">0</span></span></p>
+        </div>
+        <div class="checkbox-container">
+            <label>
+                <input type="checkbox" id="advancedMode"> 高级模式（计算任意角度的正三角形）
+            </label>
+        </div>
+        <button id="restartButton">重新开局</button>
     </div>
 </div>
+<div id="gameResult"></div>
 <script src="game.js"></script>
 </body>
 </html>
