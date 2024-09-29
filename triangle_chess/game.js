@@ -1,15 +1,31 @@
 (function(){
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
+    
+    let width, height, centerX, centerY, sideLength, circleDiameter, circleRadius;
 
-    const sideLength = 100; // 单位正三角形的边长
-    const circleDiameter = 700; // 大圆的直径
-    const circleRadius = circleDiameter / 2;
+    // 根据屏幕大小调整画布尺寸
+    function resizeCanvas() {
+        const containerWidth = document.body.clientWidth;
+        const size = Math.min(containerWidth - 20, 800); // 最大尺寸为800px
+        canvas.width = size;
+        canvas.height = size;
+        
+        // 更新全局变量
+        width = canvas.width;
+        height = canvas.height;
+        centerX = width / 2;
+        centerY = height / 2;
+        sideLength = width / 8;
+        circleDiameter = sideLength * 7;
+        circleRadius = circleDiameter / 2;
 
+        initializeGame(); // 重新初始化游戏
+    }
+
+    // 在窗口大小改变时调整画布尺寸
+    window.addEventListener('resize', resizeCanvas);
+    
     const vertices = []; // 存储所有交点（顶点）
     const occupied = {}; // 记录被占据的顶点，键为顶点坐标，值为玩家
     let currentPlayer = 'black'; // 当前玩家，'black' 或 'white'
@@ -229,7 +245,7 @@
         let count = 0;
         const positionSet = new Set(positions.map(p => `${p.x},${p.y}`));
 
-        // 遍历所有可能的三子组合
+        // 遍历所有可能的三子组��
         for (let i = 0; i < positions.length; i++) {
             for (let j = i + 1; j < positions.length; j++) {
                 for (let k = j + 1; k < positions.length; k++) {
@@ -345,6 +361,6 @@
     // 添加重新开局按钮的事件监听器
     restartButton.addEventListener('click', initializeGame);
 
-    // 在文件末尾调用initializeGame函数来初始化游戏
-    initializeGame();
+    // 初始调整画布大小并初始化游戏
+    resizeCanvas();
 })();
