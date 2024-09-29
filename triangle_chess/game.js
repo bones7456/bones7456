@@ -149,6 +149,8 @@
         return { x: x + centerX, y: y + centerY };
     }
 
+    let lastMove = null; // 用于存储最后一步棋的位置
+
     // 处理点击事件的函数
     function handleCanvasClick(event) {
         const rect = canvas.getBoundingClientRect();
@@ -175,6 +177,12 @@
 
         // 绘制棋子
         drawStone(closestVertex.x, closestVertex.y, currentPlayer);
+
+        // 更新最后一步棋的位置
+        lastMove = { x: closestVertex.x, y: closestVertex.y };
+
+        // 重绘所有棋子以更新标记
+        redrawAllStones();
 
         // 标记该顶点被当前玩家占据
         occupied[key] = currentPlayer;
@@ -212,6 +220,16 @@
         ctx.strokeStyle = '#000';
         ctx.fill();
         ctx.stroke();
+
+        // 如果这是最后一步棋，绘制一个小一点的标记
+        if (lastMove && lastMove.x === x && lastMove.y === y) {
+            ctx.beginPath();
+            ctx.arc(x, y, sideLength * 0.15, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#ff0000'; // 红色标记
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.lineWidth = 1; // 恢复默认线宽
+        }
     }
 
     // 实时更新黑白双方的正三角形数量
@@ -350,6 +368,9 @@
         Object.keys(occupied).forEach(key => delete occupied[key]);
         currentPlayer = 'black';
 
+        // 重置最后一步棋的位置
+        lastMove = null;
+
         // 重新绘制棋盘
         drawBoard();
         generateVertices();
@@ -374,7 +395,7 @@
     }
 
     function drawBoard() {
-        // 绘制圆
+        // 绘��圆
         ctx.beginPath();
         ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
         ctx.stroke();
@@ -459,8 +480,13 @@
         const key = `${bestMove.position.x},${bestMove.position.y}`;
         occupied[key] = 'white';
         drawStone(bestMove.position.x, bestMove.position.y, 'white');
-        console.log(bestMove.position.x, bestMove.position.y);
-        
+
+        // 更新最后一步棋的位置
+        lastMove = { x: bestMove.position.x, y: bestMove.position.y };
+
+        // 重绘所有棋子以更新标记
+        redrawAllStones();
+
         // 更新游戏状态
         updateTriangleCounts();
         drawAvailablePositions();
@@ -475,5 +501,13 @@
         // 切换回人类玩家
         currentPlayer = 'black';
         currentPlayerElement.textContent = '黑方';
+    }
+
+    // 添加 redrawAllStones 函数
+    function redrawAllStones() {
+        for (const key in occupied) {
+            const [x, y] = key.split(',').map(Number);
+            drawStone(x, y, occupied[key]);
+        }
     }
 })();
