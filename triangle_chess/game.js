@@ -4,6 +4,17 @@
     
     let width, height, centerX, centerY, sideLength, circleDiameter, circleRadius;
 
+    // 初始化 AI 模式
+    const aiModeCheckbox = document.getElementById('aiMode');
+    let aiMode = aiModeCheckbox.checked;
+
+    aiModeCheckbox.addEventListener('change', function() {
+        aiMode = this.checked;
+        if (aiMode && currentPlayer === 'white') {
+            makeAIMove();
+        }
+    });
+
     // 根据屏幕大小调整画布尺寸
     function resizeCanvas() {
         const containerWidth = document.body.clientWidth;
@@ -186,6 +197,11 @@
         // 切换玩家
         currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
         currentPlayerElement.textContent = currentPlayer === 'black' ? '黑方' : '白方';
+
+        // 在人类玩家下棋后,如果 AI 模式开启,则触发 AI 下棋
+        if (aiMode && currentPlayer === 'white') {
+            setTimeout(makeAIMove, 500); // 添加短暂延迟,使游戏更自然
+        }
     }
 
     // 绘制棋子的函数
@@ -245,7 +261,7 @@
         let count = 0;
         const positionSet = new Set(positions.map(p => `${p.x},${p.y}`));
 
-        // 遍历所有可能的三子组��
+        // 遍历所有可能的三子组
         for (let i = 0; i < positions.length; i++) {
             for (let j = i + 1; j < positions.length; j++) {
                 for (let k = j + 1; k < positions.length; k++) {
@@ -308,7 +324,7 @@
         );
     }
 
-    // 添加事件监听器，以便在切换高级模式时重新计算三角形数量
+    // 添加事件监听器，以在切换高级模式时重新计算三角形数量
     advancedModeCheckbox.addEventListener('change', updateTriangleCounts);
 
     const restartButton = document.getElementById('restartButton');
@@ -338,10 +354,16 @@
         // 隐藏游戏结果
         const resultElement = document.getElementById('gameResult');
         resultElement.style.display = 'none';
+
+        // 重置 AI 模式
+        aiMode = aiModeCheckbox.checked;
+        if (aiMode && currentPlayer === 'white') {
+            setTimeout(makeAIMove, 500);
+        }
     }
 
     function drawBoard() {
-        // 绘制大圆
+        // 绘制圆
         ctx.beginPath();
         ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
         ctx.stroke();
@@ -363,4 +385,82 @@
 
     // 初始调整画布大小并初始化游戏
     resizeCanvas();
+
+    function makeAIMove() {
+        console.log('AI 下棋');
+        // 获取所有可用的落子位置
+        const availablePositions = vertices.filter(vertex => {
+            const key = `${vertex.x},${vertex.y}`;
+            return !occupied[key];
+        });
+
+        if (availablePositions.length === 0) return;
+
+        // 评分函数：计算每个位置的得分
+        function evaluatePosition(position) {
+            let score = 0;
+            const tempOccupied = {...occupied, [`${position.x},${position.y}`]: 'white'};
+            
+            // 模拟落子后计算白棋的三角形数量
+            const whitePositions = Object.keys(tempOccupied)
+                .filter(key => tempOccupied[key] === 'white')
+                .map(key => {
+                    const [x, y] = key.split(',').map(Number);
+                    return {x, y};
+                });
+            const whiteTriangles = countTriangles(whitePositions);
+            
+            // 计算黑棋的三角形数量
+            const blackPositions = Object.keys(tempOccupied)
+                .filter(key => tempOccupied[key] === 'black')
+                .map(key => {
+                    const [x, y] = key.split(',').map(Number);
+                    return {x, y};
+                });
+            const blackTriangles = countTriangles(blackPositions);
+            
+            // 计算如果黑棋在这个位置落子会形成多少个三角形
+            const blackPositionsIfMoved = [...blackPositions, position];
+            const blackTrianglesIfMoved = countTriangles(blackPositionsIfMoved);
+            const preventedTriangles = blackTrianglesIfMoved - blackTriangles;
+            
+            // 得分 = 白棋三角形数量 - 黑棋三角形数量 + 阻止的黑棋三角形数量
+            score = whiteTriangles - blackTriangles + preventedTriangles;
+            
+            return score;
+        }
+
+        // 为每个可用位置计算得分
+        const scoredPositions = availablePositions.map(position => ({
+            position,
+            score: evaluatePosition(position)
+        }));
+        console.log(scoredPositions);
+
+        // 选择得分最高的位置
+        const bestMove = scoredPositions.reduce((best, current) => 
+            current.score > best.score ? current : best
+        );
+
+        // 执行最佳移动
+        const key = `${bestMove.position.x},${bestMove.position.y}`;
+        occupied[key] = 'white';
+        drawStone(bestMove.position.x, bestMove.position.y, 'white');
+        console.log(bestMove.position.x, bestMove.position.y);
+        
+        // 更新游戏状态
+        updateTriangleCounts();
+        drawAvailablePositions();
+        occupiedCountElement.textContent = Object.keys(occupied).length.toString();
+
+        // 检查游戏是否结束
+        if (Object.keys(occupied).length === vertices.length) {
+            endGame();
+            return;
+        }
+
+        // 切换回人类玩家
+        currentPlayer = 'black';
+        currentPlayerElement.textContent = '黑方';
+    }
 })();
