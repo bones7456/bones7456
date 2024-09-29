@@ -25,7 +25,7 @@
         }
         #controlPanel {
             width: 100%;
-            max-width: 400px;
+            max-width: 600px;
             margin-top: 5px;
         }
         #debugInfo {
@@ -35,7 +35,7 @@
         }
         #debugInfo p {
             margin: 2px 0;
-            width: 48%;
+            width: 33%;
         }
         #debugInfo span {
             display: inline-block;
@@ -44,13 +44,7 @@
         .checkbox-container {
             margin-top: 5px;
         }
-        #restartButton {
-            margin-top: 5px;
-            padding: 5px 10px;
-            font-size: 14px;
-            cursor: pointer;
-            width: 100%;
-        }
+
         #gameResult {
             position: fixed;
             top: 50%;
@@ -64,6 +58,72 @@
             max-width: 80%;
             font-size: 12px;
         }
+        
+        #helpButton {
+            margin-top: 5px;
+            padding: 3px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            width: auto;
+            float: right;
+        }
+
+        #helpModal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+
+        #restartButton, #helpButton {
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #restartButton {
+            flex-grow: 1;
+            margin-right: 5px;
+        }
+
+        #helpButton {
+            width: auto;
+        }
     </style>
 </head>
 <body>
@@ -73,22 +133,67 @@
         <div id="debugInfo">
             <p><strong>顶点总数：</strong><span id="verticesCount">0</span></p>
             <p><strong>已占顶点：</strong><span id="occupiedCount">0</span></p>
+            <p><strong>当前玩家：</strong><span id="currentPlayer">黑方</span></p>
             <p><strong>黑方三角形：</strong><span id="blackTriangles">0</span></p>
             <p><strong>白方三角形：</strong><span id="whiteTriangles">0</span></p>
-            <p><strong>当前玩家：</strong><span id="currentPlayer">黑方</span></p>
         </div>
         <div class="checkbox-container">
             <label>
                 <input type="checkbox" id="advancedMode"> 高级模式
             </label>
             <label>
-                <input type="checkbox" id="aiMode"> AI 模式
+                <input type="checkbox" id="aiMode" checked> AI 模式
             </label>
         </div>
-        <button id="restartButton">重新开局</button>
+        <div class="button-container">
+            <button id="restartButton">重新开局</button>
+            <button id="helpButton">帮助</button>
+        </div>
     </div>
 </div>
 <div id="gameResult"></div>
+
+<div id="helpModal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>游戏规则</h2>
+        <p>1. 游戏在六边形棋盘上进行,玩家轮流在交叉点上放置棋子。</p>
+        <p>2. 黑方先手,之后双方交替落子。</p>
+        <p>3. 游戏目标是通过放置棋子形成尽可能多的等边三角形。</p>
+        <p>4. 当所有交叉点都被占据时,游戏结束。</p>
+        <p>5. 形成最多等边三角形的玩家获胜。</p>
+        <p>6. 在AI模式下,玩家执黑棋,与电脑对弈。</p>
+        <p>7. 高级模式允许计算任意角度的等边三角形。</p>
+    </div>
+</div>
+
 <script src="game.js"></script>
+<script>
+    // 获取模态框
+    var modal = document.getElementById("helpModal");
+
+    // 获取打开模态框的按钮
+    var btn = document.getElementById("helpButton");
+
+    // 获取 <span> 元素，用于关闭模态框
+    var span = document.getElementsByClassName("close")[0];
+
+    // 点击按钮打开模态框
+    btn.onclick = function() {
+        modal.style.display = "block";
+    }
+
+    // 点击 <span> (x), 关闭模态框
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    // 在用户点击其他地方时，关闭模态框
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
 </body>
 </html>

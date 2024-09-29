@@ -329,6 +329,17 @@
 
     const restartButton = document.getElementById('restartButton');
 
+    // 修改重新开局按钮的事件监听器
+    restartButton.addEventListener('click', function() {
+        if (Object.keys(occupied).length > 0) {
+            if (confirm('游戏正在进行中,确定要重新开始吗?')) {
+                initializeGame();
+            }
+        } else {
+            initializeGame();
+        }
+    });
+
     // 在初始化游戏状态的代码块之后添加以下函数
     function initializeGame() {
         // 清空棋盘
@@ -380,9 +391,6 @@
         drawParallelLines(-60);
     }
 
-    // 添加重新开局按钮的事件监听器
-    restartButton.addEventListener('click', initializeGame);
-
     // 初始调整画布大小并初始化游戏
     resizeCanvas();
 
@@ -424,8 +432,13 @@
             const blackTrianglesIfMoved = countTriangles(blackPositionsIfMoved);
             const preventedTriangles = blackTrianglesIfMoved - blackTriangles;
             
-            // 得分 = 白棋三角形数量 - 黑棋三角形数量 + 阻止的黑棋三角形数量
-            score = whiteTriangles - blackTriangles + preventedTriangles;
+            // 计算位置距离中心的距离
+            const distanceToCenter = Math.hypot(position.x - centerX, position.y - centerY);
+            const maxDistance = Math.hypot(width/2, height/2);
+            const centralityScore = 1 - (distanceToCenter / maxDistance); // 0到1之间的值，越靠近中心越接近1
+            
+            // 得分 = 白棋三角形数量 - 黑棋三角形数量 + 阻止的黑棋三角形数量 + 中心位置权重
+            score = whiteTriangles - blackTriangles + preventedTriangles + centralityScore/5;
             
             return score;
         }
