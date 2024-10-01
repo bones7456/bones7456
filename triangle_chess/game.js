@@ -76,6 +76,17 @@
     // 添加点击事件监听器
     canvas.addEventListener('click', handleCanvasClick);
 
+    // 检查顶点是否已存在的函数
+    function isVertexExisting(x, y, vertexMap, epsilon = 1e-4) {
+        for (const key in vertexMap) {
+            const [vx, vy] = key.split(',').map(Number);
+            if (Math.abs(vx - x) < epsilon && Math.abs(vy - y) < epsilon) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // 生成所有交点的函数
     function generateVertices() {
         const linesByAngle = {
@@ -118,12 +129,10 @@
                             // 检查点是否在大圆内
                             if (Math.hypot(point.x - centerX, point.y - centerY) <= circleRadius) {
                                 // 将坐标四舍五入到两位小数
-                                const xRounded = parseFloat(point.x.toFixed(2));
-                                const yRounded = parseFloat(point.y.toFixed(2));
-                                const key = `${xRounded},${yRounded}`;
-
-                                // 检查顶点是否已存在
-                                if (!vertexMap[key]) {
+                                const xRounded = parseFloat(point.x.toFixed(4));
+                                const yRounded = parseFloat(point.y.toFixed(4));
+                                if (!isVertexExisting(xRounded, yRounded, vertexMap)) {
+                                    const key = `${xRounded},${yRounded}`;
                                     vertexMap[key] = true;
                                     vertices.push({ x: xRounded, y: yRounded });
                                 }
