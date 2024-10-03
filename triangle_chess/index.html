@@ -139,22 +139,23 @@
         </div>
         <div class="checkbox-container">
             <label>
-                <input type="checkbox" id="advancedMode"> 高级模式
+                <input type="checkbox" id="advancedMode"><span id="advancedMode-label">高级模式</span>
             </label>
             <label>
-                <input type="checkbox" id="aiMode" checked> AI 模式
+                <input type="checkbox" id="aiMode" checked><span id="aiMode-label">AI 模式</span>
             </label>
         </div>
         <div class="button-container">
             <button id="restartButton">重新开局</button>
             <button id="helpButton">帮助</button>
+            <button id="languageToggle">English</button>
         </div>
     </div>
 </div>
 <div id="gameResult"></div>
 
 <div id="helpModal">
-    <div class="modal-content">
+    <div class="modal-content" id="rulesCN">
         <span class="close">&times;</span>
         <h2>游戏规则</h2>
         <p>1. 游戏在六边形棋盘上进行,玩家轮流在交叉点上放置棋子。</p>
@@ -164,7 +165,19 @@
         <p>5. 形成最多等边三角形的玩家获胜。</p>
         <p>6. 在AI模式下,玩家执黑棋,与电脑对弈。</p>
         <p>7. 高级模式允许计算任意角度的等边三角形。</p>
-        <a href="https://github.com/bones7456/something/tree/main/triangle_chess">code@github</a>
+        <a href="https://github.com/bones7456/something/tree/main/triangle_chess"> github </a>
+    </div>
+    <div class="modal-content" id="rulesEN" style="display: none;">
+        <span class="close">&times;</span>
+        <h2>Game Rules</h2>
+        <p>1. The game is played on a hexagonal board, with players taking turns placing pieces on intersections.</p>
+        <p>2. Black moves first, followed by alternating turns.</p>
+        <p>3. The goal is to form as many equilateral triangles as possible by placing pieces.</p>
+        <p>4. The game ends when all intersections are occupied.</p>
+        <p>5. The player who forms the most equilateral triangles wins.</p>
+        <p>6. In AI mode, the player controls black pieces against the computer.</p>
+        <p>7. Advanced mode allows counting triangles at any angle.</p>
+        <a href="https://github.com/bones7456/something/tree/main/triangle_chess"> github </a>
     </div>
 </div>
 
@@ -178,6 +191,7 @@
 
     // 获取 <span> 元素，用于关闭模态框
     var span = document.getElementsByClassName("close")[0];
+    var span_en = document.getElementsByClassName("close")[1];
 
     // 点击按钮打开模态框
     btn.onclick = function() {
@@ -185,7 +199,7 @@
     }
 
     // 点击 <span> (x), 关闭模态框
-    span.onclick = function() {
+    span.onclick = span_en.onclick = function() {
         modal.style.display = "none";
     }
 

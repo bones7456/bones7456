@@ -1,7 +1,64 @@
 (function(){
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    
+    const languageConfig = {
+        cn: {
+            restartButton: "重新开局",
+            helpButton: "帮助",
+            languageToggle: "Eng",
+            currentPlayer: "当前玩家：",
+            black: "黑方",
+            white: "白方",
+            verticesCount: "顶点总数：",
+            occupiedCount: "已占顶点：",
+            blackTriangles: "黑方三角形：",
+            whiteTriangles: "白方三角形：",
+            advancedMode: "高级模式",
+            aiMode: "AI 模式",
+            gameOver: "游戏结束！",
+            blackTrianglesCount: "黑方组成的正三角形数量：",
+            whiteTrianglesCount: "白方组成的正三角形数量：",
+            blackWins: "黑方获胜！",
+            whiteWins: "白方获胜！",
+            draw: "平局！",
+            confirmRestart: "游戏正在进行中,确定要重新开始吗?",
+            verticesTotal: "顶点总数：",
+            occupiedVertices: "已占顶点：",
+            currentPlayerLabel: "当前玩家：",
+            blackTrianglesLabel: "黑方三角形：",
+            whiteTrianglesLabel: "白方三角形：",
+            gameTitle: "双人棋类游戏棋盘"
+        },
+        en: {
+            restartButton: "Restart",
+            helpButton: "Help",
+            languageToggle: "中文",
+            currentPlayer: "Current Player: ",
+            black: "Black",
+            white: "White",
+            verticesCount: "Total Vertices: ",
+            occupiedCount: "Occupied Vertices: ",
+            blackTriangles: "Black Triangles: ",
+            whiteTriangles: "White Triangles: ",
+            advancedMode: "Advanced Mode",
+            aiMode: "AI Mode",
+            gameOver: "Game Over!",
+            blackTrianglesCount: "Black's equilateral triangles: ",
+            whiteTrianglesCount: "White's equilateral triangles: ",
+            blackWins: "Black Wins!",
+            whiteWins: "White Wins!",
+            draw: "It's a Draw!",
+            confirmRestart: "Game in progress. Are you sure you want to restart?",
+            verticesTotal: "Total Vertices: ",
+            occupiedVertices: "Occupied Vertices: ",
+            currentPlayerLabel: "Current Player: ",
+            blackTrianglesLabel: "Black Triangles: ",
+            whiteTrianglesLabel: "White Triangles: ",
+            gameTitle: "Two-Player Chess Game Board"
+        }
+    };
+    let currentLanguage = 'cn';
+    let lang = languageConfig[currentLanguage];
     let width, height, centerX, centerY, sideLength, circleDiameter, circleRadius;
 
     // 初始化 AI 模式
@@ -213,7 +270,7 @@
 
         // 切换玩家
         currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
-        currentPlayerElement.textContent = currentPlayer === 'black' ? '黑方' : '白方';
+        currentPlayerElement.textContent = languageConfig[currentLanguage][currentPlayer];
 
         // 在人类玩家下棋后,如果 AI 模式开启,则触发 AI 下棋
         if (aiMode && currentPlayer === 'white') {
@@ -268,21 +325,19 @@
 
     // 游戏结束处理函数
     function endGame() {
-        // 统计结果已在 updateTriangleCounts 中更新
+        const lang = languageConfig[currentLanguage];
         const blackTriangles = parseInt(blackTrianglesElement.textContent, 10);
         const whiteTriangles = parseInt(whiteTrianglesElement.textContent, 10);
 
-        // 准备结果消息
-        let resultMessage = `游戏结束！\n黑方组成的正三角形数量：${blackTriangles}\n白方组成的正三角形数量：${whiteTriangles}\n`;
+        let resultMessage = `${lang.gameOver}\n${lang.blackTrianglesCount}${blackTriangles}\n${lang.whiteTrianglesCount}${whiteTriangles}\n`;
         if (blackTriangles > whiteTriangles) {
-            resultMessage += '黑方获胜！';
+            resultMessage += lang.blackWins;
         } else if (whiteTriangles > blackTriangles) {
-            resultMessage += '白方获胜！';
+            resultMessage += lang.whiteWins;
         } else {
-            resultMessage += '平局！';
+            resultMessage += lang.draw;
         }
 
-        // 更新并显示结果元素
         const resultElement = document.getElementById('gameResult');
         resultElement.textContent = resultMessage;
         resultElement.style.display = 'block';
@@ -393,7 +448,7 @@
         // 更新显示信息
         verticesCountElement.textContent = vertices.length.toString();
         occupiedCountElement.textContent = '0';
-        currentPlayerElement.textContent = '黑方';
+        currentPlayerElement.textContent = languageConfig[currentLanguage].black;
         blackTrianglesElement.textContent = '0';
         whiteTrianglesElement.textContent = '0';
 
@@ -408,6 +463,7 @@
         }
 
         advancedModeCheckbox.disabled = false;
+        updateUILanguage();
     }
 
     function drawBoard() {
@@ -432,7 +488,6 @@
     resizeCanvas();
 
     function makeAIMove() {
-        console.log('AI 下棋');
         // 获取所有可用的落子位置
         const availablePositions = vertices.filter(vertex => {
             const key = `${vertex.x},${vertex.y}`;
@@ -516,7 +571,7 @@
 
         // 切换回人类玩家
         currentPlayer = 'black';
-        currentPlayerElement.textContent = '黑方';
+        currentPlayerElement.textContent = lang[currentPlayer];
     }
 
     // 添加 redrawAllStones 函数
@@ -526,4 +581,51 @@
             drawStone(x, y, occupied[key]);
         }
     }
+
+    // 添加语言切换函数
+    function toggleLanguage() {
+        currentLanguage = currentLanguage === 'cn' ? 'en' : 'cn';
+        lang = languageConfig[currentLanguage];
+        updateUILanguage();
+    }
+
+    // 更新UI语言
+    function updateUILanguage() {        
+        document.getElementById('restartButton').textContent = lang.restartButton;
+        document.getElementById('helpButton').textContent = lang.helpButton;
+        document.getElementById('languageToggle').textContent = lang.languageToggle;
+        
+        document.getElementById('advancedMode-label').textContent = lang.advancedMode;
+        document.getElementById('aiMode-label').textContent = lang.aiMode;
+        
+        document.querySelector('#debugInfo p:nth-child(1) strong').textContent = lang.verticesTotal;
+        document.querySelector('#debugInfo p:nth-child(2) strong').textContent = lang.occupiedVertices;
+        document.querySelector('#debugInfo p:nth-child(3) strong').textContent = lang.currentPlayerLabel;
+        document.querySelector('#debugInfo p:nth-child(4) strong').textContent = lang.blackTrianglesLabel;
+        document.querySelector('#debugInfo p:nth-child(5) strong').textContent = lang.whiteTrianglesLabel;
+        
+        // 更新当前玩家显示
+        currentPlayerElement.textContent = `${lang[currentPlayer]}`;
+        
+        // 更新页面标题
+        document.title = lang.gameTitle;
+        
+        // 切换帮助模态框内容
+        document.getElementById('rulesCN').style.display = currentLanguage === 'cn' ? 'block' : 'none';
+        document.getElementById('rulesEN').style.display = currentLanguage === 'en' ? 'block' : 'none';
+    }
+
+    // 添加语言切换按钮的事件监听器
+    document.getElementById('languageToggle').addEventListener('click', toggleLanguage);
+
+    // 修改重新开局按钮的事件监听器以支持多语言
+    restartButton.addEventListener('click', function() {
+        if (Object.keys(occupied).length > 0) {
+            if (confirm(languageConfig[currentLanguage].confirmRestart)) {
+                initializeGame();
+            }
+        } else {
+            initializeGame();
+        }
+    });
 })();
