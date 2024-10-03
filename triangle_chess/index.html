@@ -44,7 +44,6 @@
         .checkbox-container {
             margin-top: 5px;
         }
-
         #gameResult {
             position: fixed;
             top: 50%;
@@ -58,7 +57,6 @@
             max-width: 80%;
             font-size: 12px;
         }
-
         #helpModal {
             display: none;
             position: fixed;
@@ -70,7 +68,6 @@
             overflow: auto;
             background-color: rgba(0,0,0,0.4);
         }
-
         .modal-content {
             background-color: #fefefe;
             margin: 15% auto;
@@ -79,7 +76,6 @@
             width: 80%;
             max-width: 600px;
         }
-
         .close {
             color: #aaa;
             float: right;
@@ -87,35 +83,29 @@
             font-weight: bold;
             cursor: pointer;
         }
-
         .close:hover,
         .close:focus {
             color: black;
             text-decoration: none;
             cursor: pointer;
         }
-
         .button-container {
             display: flex;
             justify-content: space-between;
             margin-top: 5px;
         }
-
         #restartButton, #helpButton, #languageToggle {
             padding: 5px 10px;
             font-size: 14px;
             cursor: pointer;
-            margin-right: 5px;
             background-color: #f0f0f0;
             border: 1px solid #ccc;
             border-radius: 3px;
         }
-
         #restartButton {
             flex-grow: 1;
             margin-right: 5px;
         }
-
     </style>
 </head>
 <body>
@@ -175,27 +165,20 @@
 
 <script src="game.js"></script>
 <script>
-    // 获取模态框
     var modal = document.getElementById("helpModal");
-
-    // 获取打开模态框的按钮
     var btn = document.getElementById("helpButton");
+    var spans = document.getElementsByClassName("close");
 
-    // 获取 <span> 元素，用于关闭模态框
-    var span = document.getElementsByClassName("close")[0];
-    var span_en = document.getElementsByClassName("close")[1];
-
-    // 点击按钮打开模态框
     btn.onclick = function() {
         modal.style.display = "block";
     }
 
-    // 点击 <span> (x), 关闭模态框
-    span.onclick = span_en.onclick = function() {
-        modal.style.display = "none";
+    for (var i = 0; i < spans.length; i++) {
+        spans[i].onclick = function() {
+            modal.style.display = "none";
+        }
     }
 
-    // 在用户点击其他地方时，关闭模态框
     window.onclick = function(event) {
         if (event.target == modal) {
             modal.style.display = "none";
