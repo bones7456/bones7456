@@ -219,6 +219,11 @@
         if (aiMode && currentPlayer === 'white') {
             setTimeout(makeAIMove, 500); // 添加短暂延迟,使游戏更自然
         }
+
+        // 在第一次落子后禁用高级模式复选框
+        if (Object.keys(occupied).length === 1) {
+            advancedModeCheckbox.disabled = true;
+        }
     }
 
     // 绘制棋子的函数
@@ -401,10 +406,12 @@
         if (aiMode && currentPlayer === 'white') {
             setTimeout(makeAIMove, 500);
         }
+
+        advancedModeCheckbox.disabled = false;
     }
 
     function drawBoard() {
-        // 绘��圆
+        // 绘制大圆
         ctx.beginPath();
         ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
         ctx.stroke();
