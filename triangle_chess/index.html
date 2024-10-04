@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双人棋类游戏棋盘</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 5px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        #gameContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            border: 1px solid black;
+            background-color: #fff;
+            max-width: 100%;
+            height: auto;
+        }
+        #controlPanel {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 5px;
+        }
+        #debugInfo {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        #debugInfo p {
+            margin: 2px 0;
+            width: 33%;
+        }
+        #debugInfo span {
+            display: inline-block;
+            width: 100%;
+        }
+        .checkbox-container {
+            margin-top: 5px;
+        }
+        #gameResult {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 10px;
+            border: 2px solid black;
+            z-index: 1000;
+            display: none;
+            max-width: 80%;
+            font-size: 12px;
+        }
+        #helpModal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+        #restartButton, #helpButton, #languageToggle {
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        #restartButton {
+            flex-grow: 1;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="800"></canvas>
+    <div id="controlPanel">
+        <div id="debugInfo">
+            <p><strong>顶点总数：</strong><span id="verticesCount">0</span></p>
+            <p><strong>已占顶点：</strong><span id="occupiedCount">0</span></p>
+            <p><strong>当前玩家：</strong><span id="currentPlayer">黑方</span></p>
+            <p><strong>黑方三角形：</strong><span id="blackTriangles">0</span></p>
+            <p><strong>白方三角形：</strong><span id="whiteTriangles">0</span></p>
+        </div>
+        <div class="checkbox-container">
+            <label>
+                <input type="checkbox" id="advancedMode"><span id="advancedMode-label">高级模式</span>
+            </label>
+            <label>
+                <input type="checkbox" id="aiMode" checked><span id="aiMode-label">AI 模式</span>
+            </label>
+        </div>
+        <div class="button-container">
+            <button id="restartButton">重新开局</button>
+            <button id="helpButton">帮助</button>
+            <button id="languageToggle">English</button>
+        </div>
+    </div>
+</div>
+<div id="gameResult"></div>
+
+<div id="helpModal">
+    <div class="modal-content" id="rulesCN">
+        <span class="close">&times;</span>
+        <h2>游戏规则</h2>
+        <p>1. 游戏在六边形棋盘上进行,玩家轮流在交叉点上放置棋子。</p>
+        <p>2. 黑方先手,之后双方交替落子。</p>
+        <p>3. 游戏目标是通过放置棋子形成尽可能多的等边三角形。</p>
+        <p>4. 当所有交叉点都被占据时,游戏结束。</p>
+        <p>5. 形成最多等边三角形的玩家获胜。</p>
+        <p>6. 在AI模式下,玩家执黑棋,与电脑对弈。</p>
+        <p>7. 高级模式允许计算任意角度的等边三角形。</p>
+        <a href="https://github.com/bones7456/something/tree/main/triangle_chess"> github </a>
+    </div>
+    <div class="modal-content" id="rulesEN" style="display: none;">
+        <span class="close">&times;</span>
+        <h2>Game Rules</h2>
+        <p>1. The game is played on a hexagonal board, with players taking turns placing pieces on intersections.</p>
+        <p>2. Black moves first, followed by alternating turns.</p>
+        <p>3. The goal is to form as many equilateral triangles as possible by placing pieces.</p>
+        <p>4. The game ends when all intersections are occupied.</p>
+        <p>5. The player who forms the most equilateral triangles wins.</p>
+        <p>6. In AI mode, the player controls black pieces against the computer.</p>
+        <p>7. Advanced mode allows counting triangles at any angle.</p>
+        <a href="https://github.com/bones7456/something/tree/main/triangle_chess"> github </a>
+    </div>
+</div>
+
+<script src="game.js"></script>
+<script>
+    var modal = document.getElementById("helpModal");
+    var btn = document.getElementById("helpButton");
+    var spans = document.getElementsByClassName("close");
+
+    btn.onclick = function() {
+        modal.style.display = "block";
+    }
+
+    for (var i = 0; i < spans.length; i++) {
+        spans[i].onclick = function() {
+            modal.style.display = "none";
+        }
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
+</body>
+</html>
