@@ -4,9 +4,11 @@ import email
 from email.message import EmailMessage
 from email.header import decode_header
 from openai import OpenAI
+import base64
+import io
 from config import *
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY, base_url = "https://api.tu-zi.com/v1")
 
 def decode_mime_header(header):
     """解码MIME编码的邮件头"""
@@ -63,24 +65,103 @@ def check_new_emails():
 
         sender = email.utils.parseaddr(msg["From"])[1]
         subject = decode_mime_header(msg["Subject"]) or "(无主题)"
-        body = get_email_body(msg)
+        body, images = get_email_content_with_images(msg)
 
-        print(f"📩 收到来自 {sender} 的提示词：标题｜{subject}｜，内容｜{body.strip()}｜")
+        if images:
+            print(f"📩 收到来自 {sender} 的提示词：标题｜{subject}｜，内容｜{body.strip()}｜，包含 {len(images)} 张图片")
+        else:
+            print(f"📩 收到来自 {sender} 的提示词：标题｜{subject}｜，内容｜{body.strip()}｜")
 
-        reply_text = ask_gpt(body)
+        reply_text = ask_gpt_with_images(body, images)
         print(f"🤖 回复：{reply_text}")
         send_reply(sender, subject, reply_text)
 
     mail.logout()
 
-def get_email_body(msg):
+def get_email_content_with_images(msg):
+    """提取邮件文本内容和图片"""
+    text_content = ""
+    images = []
+    
     if msg.is_multipart():
         for part in msg.walk():
-            if part.get_content_type() == "text/plain" and part.get_content_disposition() is None:
-                return part.get_payload(decode=True).decode(errors="ignore")
+            content_type = part.get_content_type()
+            content_disposition = part.get_content_disposition()
+            
+            # 提取文本内容
+            if content_type == "text/plain" and content_disposition is None:
+                try:
+                    text_content = part.get_payload(decode=True).decode(errors="ignore")
+                except:
+                    continue
+            
+            # 提取图片
+            elif content_type.startswith('image/'):
+                try:
+                    image_data = part.get_payload(decode=True)
+                    if image_data:
+                        # 编码为base64
+                        base64_image = base64.b64encode(image_data).decode('utf-8')
+                        images.append({
+                            'type': content_type,
+                            'data': base64_image
+                        })
+                        print(f"🖼️  提取到图片: {content_type}")
+                except Exception as e:
+                    print(f"⚠️  处理图片时出错: {e}")
+                    continue
     else:
-        return msg.get_payload(decode=True).decode(errors="ignore")
-    return ""
+        # 非多部分邮件，只有文本
+        try:
+            text_content = msg.get_payload(decode=True).decode(errors="ignore")
+        except:
+            text_content = ""
+    
+    return text_content, images
+
+def get_email_body(msg):
+    """保持向后兼容的函数"""
+    text_content, _ = get_email_content_with_images(msg)
+    return text_content
+
+def ask_gpt_with_images(prompt, images=None):
+    """支持图片的GPT请求"""
+    if not images:
+        # 没有图片，使用原来的方式
+        return ask_gpt(prompt)
+    
+    # 构建多模态消息
+    message_content = []
+    
+    # 添加文本内容
+    if prompt.strip():
+        message_content.append({
+            "type": "text",
+            "text": prompt
+        })
+    
+    # 添加图片内容
+    for image in images:
+        message_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:{image['type']};base64,{image['data']}"
+            }
+        })
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",  # 使用支持视觉的模型
+            messages=[{"role": "user", "content": message_content}],
+            max_tokens=10000
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"⚠️  GPT请求失败: {e}")
+        # 如果多模态请求失败，尝试只用文本
+        if prompt.strip():
+            return ask_gpt(prompt)
+        return "抱歉，无法处理您的请求。"
 
 def ask_gpt(prompt):
     response = client.chat.completions.create(
