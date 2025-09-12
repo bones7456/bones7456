@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新加坡天气云图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .base-map {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 1;
+        }
+
+        .cloud-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 3;
+            opacity: 0.5;
+        }
+
+        .time-controls {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+            color: white;
+            z-index: 10;
+            min-width: 250px;
+            max-width: 250px;
+            backdrop-filter: blur(10px);
+        }
+
+        .time-display {
+            text-align: center;
+            margin-bottom: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .time-text {
+            flex: 1;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
+        .location-error-message {
+            text-align: center;
+            margin-bottom: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #ff0000;
+            display: none;
+        }
+
+        .slider-container {
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .time-slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .time-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+
+        .control-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 4px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+            min-width: 24px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-btn:hover {
+            background: #45a049;
+        }
+
+        .control-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .overlay-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: center;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .overlay-checkbox {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        .overlay-image {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .user-location {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #2196F3;
+            border: 2px solid white;
+            border-radius: 50%;
+            z-index: 4;
+            pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transform: translate(-50%, -50%);
+        }
+
+        .credit-link {
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .credit-link a {
+            color: #888;
+            text-decoration: none;
+            font-size: 9px;
+            transition: color 0.3s;
+        }
+
+        .credit-link a:hover {
+            color: #ccc;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            z-index: 5;
+        }
+
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 5;
+            max-width: 80%;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .time-controls {
+                bottom: 8px;
+                right: 8px;
+                left: auto;
+                min-width: auto;
+                max-width: 250px;
+                padding: 8px;
+            }
+
+            .time-display {
+                font-size: 11px;
+            }
+
+            .location-error-message {
+                font-size: 11px;
+            }
+
+            .control-btn {
+                padding: 3px 5px;
+                font-size: 11px;
+                min-width: 20px;
+                height: 18px;
+            }
+
+            .overlay-controls {
+                gap: 6px;
+                margin-top: 6px;
+            }
+
+            .checkbox-label {
+                font-size: 10px;
+            }
+
+            .overlay-checkbox {
+                width: 12px;
+                height: 12px;
+            }
+
+            .credit-link a {
+                font-size: 8px;
+            }
+        }
+
+        /* 横屏优化 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .time-controls {
+                bottom: 5px;
+                right: 5px;
+                left: auto;
+                padding: 6px;
+                min-width: 200px;
+                max-width: 250px;
+            }
+
+            .time-display {
+                font-size: 10px;
+                margin-bottom: 2px;
+            }
+            .location-error-message {
+                font-size: 10px;
+            }
+
+            .control-buttons {
+                gap: 4px;
+            }
+
+            .control-btn {
+                padding: 2px 4px;
+                font-size: 10px;
+                min-width: 18px;
+                height: 16px;
+            }
+
+            .overlay-controls {
+                gap: 4px;
+                margin-top: 4px;
+            }
+
+            .checkbox-label {
+                font-size: 9px;
+            }
+
+            .overlay-checkbox {
+                width: 10px;
+                height: 10px;
+            }
+
+            .credit-link a {
+                font-size: 7px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="map-container">
+            <img id="baseMap" class="base-map" src="https://www.weather.gov.sg/wp-content/themes/wiptheme/assets/img/base-853.png" alt="新加坡底图">
+            <img id="mrtOverlay" class="overlay-image" alt="MRT线路" style="display: none;">
+            <img id="hiwOverlay" class="overlay-image" alt="高速公路" style="display: none;">
+            <img id="ldmkOverlay" class="overlay-image" alt="地标" style="display: none;">
+            <img id="townOverlay" class="overlay-image" alt="城镇" style="display: none;">
+            <img id="cloudOverlay" class="cloud-overlay" alt="云图覆盖层">
+            <div id="userLocation" class="user-location" style="display: none;"></div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            加载中...
+        </div>
+        
+        <div id="errorMessage" class="error-message" style="display: none;">
+            加载失败，请检查网络连接
+        </div>
+    </div>
+
+    <div class="time-controls">
+        <div class="time-display" id="timeDisplay">
+            <span class="time-text" id="timeText">Time: 2025-09-11 15:15</span>
+            <div class="control-buttons">
+                <button id="playBtn" class="control-btn">▶</button>
+                <button id="pauseBtn" class="control-btn" style="display: none;">⏸</button>
+                <button id="liveBtn" class="control-btn">⏹</button>
+            </div>
+        </div>
+        <div class="slider-container">
+            <input type="range" id="timeSlider" class="time-slider" min="0" max="24" value="24">
+        </div>
+        <div class="overlay-controls">
+            <label class="checkbox-label">
+                <input type="checkbox" id="mrtCheckbox" class="overlay-checkbox">
+                <span>MRT</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="hiwCheckbox" class="overlay-checkbox">
+                <span>HiW</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="ldmkCheckbox" class="overlay-checkbox">
+                <span>Ldmk</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="townCheckbox" class="overlay-checkbox">
+                <span>Town</span>
+            </label>
+        </div>
+        <div class="credit-link">
+            <a href="https://www.weather.gov.sg" target="_blank" rel="noopener noreferrer">Thanks to: weather.gov.sg</a>
+        </div>
+        <div class="location-error-message" id="locationErrorMessage">
+            获取位置信息失败，请参考<a href="https://support.google.com/maps/?hl=zh-CN&p=browser_lp" target="_blank" rel="noopener noreferrer">这里</a>。
+        </div>
+    </div>
+
+    <script>
+        class WeatherMap {
+            constructor() {
+                this.baseMap = document.getElementById('baseMap');
+                this.cloudOverlay = document.getElementById('cloudOverlay');
+                this.timeSlider = document.getElementById('timeSlider');
+                this.timeDisplay = document.getElementById('timeDisplay');
+                this.timeText = document.getElementById('timeText');
+                this.locationErrorMessage = document.getElementById('locationErrorMessage');
+                this.playBtn = document.getElementById('playBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.liveBtn = document.getElementById('liveBtn');
+                this.loading = document.getElementById('loading');
+                this.errorMessage = document.getElementById('errorMessage');
+                
+                // 叠加层元素
+                this.mrtOverlay = document.getElementById('mrtOverlay');
+                this.hiwOverlay = document.getElementById('hiwOverlay');
+                this.ldmkOverlay = document.getElementById('ldmkOverlay');
+                this.townOverlay = document.getElementById('townOverlay');
+                
+                // 复选框元素
+                this.mrtCheckbox = document.getElementById('mrtCheckbox');
+                this.hiwCheckbox = document.getElementById('hiwCheckbox');
+                this.ldmkCheckbox = document.getElementById('ldmkCheckbox');
+                this.townCheckbox = document.getElementById('townCheckbox');
+                
+                // 用户位置元素
+                this.userLocation = document.getElementById('userLocation');
+                
+                // 地图参数
+                this.mapBounds = {
+                    topLeft: { lat: 1.477355, lng: 103.555426 },
+                    bottomRight: { lat: 1.158784, lng: 104.132921 },
+                    width: 853,
+                    height: 479
+                };
+                
+                this.isPlaying = false;
+                this.playInterval = null;
+                this.currentTimeIndex = 24; // 默认显示最新时间
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadCurrentWeather();
+                this.updateTimeDisplay();
+                this.getUserLocation();
+            }
+
+            setupEventListeners() {
+                this.timeSlider.addEventListener('input', (e) => {
+                    this.currentTimeIndex = parseInt(e.target.value);
+                    this.updateTimeDisplay();
+                    this.loadWeatherImage();
+                });
+
+                this.playBtn.addEventListener('click', () => {
+                    this.startPlayback();
+                });
+
+                this.pauseBtn.addEventListener('click', () => {
+                    this.stopPlayback();
+                });
+
+                this.liveBtn.addEventListener('click', () => {
+                    this.goToLive();
+                });
+
+                // 叠加层复选框事件
+                this.mrtCheckbox.addEventListener('change', () => {
+                    this.toggleOverlay(this.mrtOverlay, this.mrtCheckbox.checked, 'https://www.weather.gov.sg/wp-content/themes/wiptheme/images/MRT.png');
+                });
+
+                this.hiwCheckbox.addEventListener('change', () => {
+                    this.toggleOverlay(this.hiwOverlay, this.hiwCheckbox.checked, 'https://www.weather.gov.sg/wp-content/themes/wiptheme/images/expressway.png');
+                });
+
+                this.ldmkCheckbox.addEventListener('change', () => {
+                    this.toggleOverlay(this.ldmkOverlay, this.ldmkCheckbox.checked, 'https://www.weather.gov.sg/wp-content/themes/wiptheme/images/Landmarks.png');
+                });
+
+                this.townCheckbox.addEventListener('change', () => {
+                    this.toggleOverlay(this.townOverlay, this.townCheckbox.checked, 'https://www.weather.gov.sg/wp-content/themes/wiptheme/images/SG-Township.png');
+                });
+
+                // 处理图片加载错误
+                this.cloudOverlay.addEventListener('error', () => {
+                    this.showError();
+                });
+
+                this.cloudOverlay.addEventListener('load', () => {
+                    this.hideLoading();
+                });
+
+                // 监听窗口大小变化，重新计算用户位置
+                window.addEventListener('resize', () => {
+                    this.updateUserLocationPosition();
+                });
+            }
+
+            // 获取当前时间，并计算2小时前的时间范围
+            getTimeRange() {
+                const now = new Date();
+                const times = [];
+                
+                // 生成过去2小时的时间点，每5分钟一个
+                for (let i = 0; i <= 24; i++) {
+                    const time = new Date(now.getTime() - (i * 5 * 60 * 1000));
+                    times.push(time);
+                }
+                
+                return times.reverse(); // 从最早到最新
+            }
+
+            // 格式化时间为URL所需的格式
+            formatTimeForUrl(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                
+                return `${year}${month}${day}${hours}${minutes}${seconds}`;
+            }
+
+            // 生成云图URL
+            generateCloudImageUrl(timeString) {
+                return `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${timeString}00dBR.dpsri.png`;
+            }
+
+            // 加载天气图片
+            loadWeatherImage() {
+                this.loadWeatherImageWithFallback(this.currentTimeIndex);
+            }
+
+            // 带回退机制的图片加载
+            loadWeatherImageWithFallback(timeIndex) {
+                const times = this.getTimeRange();
+                const selectedTime = times[timeIndex];
+                // 归一化到5分钟时间点，比如 2:00、2:05、2:10
+                selectedTime.setMinutes(Math.floor(selectedTime.getMinutes() / 5) * 5, 0, 0);
+                const timeString = this.formatTimeForUrl(selectedTime);
+                const imageUrl = this.generateCloudImageUrl(timeString);
+                
+                this.showLoading();
+                this.hideError();
+                
+                // 预加载图片
+                const img = new Image();
+                img.onload = () => {
+                    this.cloudOverlay.src = imageUrl;
+                    this.hideLoading();
+                };
+                img.onerror = () => {
+                    // 如果加载失败，尝试上一个5分钟（只尝试一次）
+                    if (timeIndex > 0) {
+                        console.log('尝试加载上一个5分钟图片', timeIndex - 1);
+                        this.tryPreviousImage(timeIndex - 1);
+                    } else {
+                        this.showError();
+                    }
+                };
+                img.src = imageUrl;
+            }
+
+            // 尝试加载上一个5分钟的图片
+            tryPreviousImage(prevTimeIndex) {
+                const times = this.getTimeRange();
+                const selectedTime = times[prevTimeIndex];
+                // 归一化到5分钟时间点
+                selectedTime.setMinutes(Math.floor(selectedTime.getMinutes() / 5) * 5, 0, 0);
+                const timeString = this.formatTimeForUrl(selectedTime);
+                const imageUrl = this.generateCloudImageUrl(timeString);
+                
+                const img = new Image();
+                img.onload = () => {
+                    this.cloudOverlay.src = imageUrl;
+                    this.hideLoading();
+                };
+                img.onerror = () => {
+                    this.showError();
+                };
+                img.src = imageUrl;
+            }
+
+            // 加载当前天气
+            loadCurrentWeather() {
+                this.currentTimeIndex = 24; // 最新时间
+                this.timeSlider.value = 24;
+                this.loadWeatherImage();
+            }
+
+            // 更新时间显示
+            updateTimeDisplay() {
+                const times = this.getTimeRange();
+                const selectedTime = times[this.currentTimeIndex];
+                // 归一化到5分钟时间点
+                selectedTime.setMinutes(Math.floor(selectedTime.getMinutes() / 5) * 5, 0, 0);
+                const timeString = selectedTime.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                this.timeText.textContent = `Time: ${timeString}`;
+            }
+
+            // 开始播放
+            startPlayback() {
+                if (this.isPlaying) return;
+                
+                // 先设置到时间轴开始位置（2小时前）
+                this.currentTimeIndex = 0;
+                this.timeSlider.value = 0;
+                this.updateTimeDisplay();
+                this.loadWeatherImage();
+                
+                this.isPlaying = true;
+                this.playBtn.style.display = 'none';
+                this.pauseBtn.style.display = 'inline-block';
+                
+                this.playInterval = setInterval(() => {
+                    if (this.currentTimeIndex < 24) {
+                        this.currentTimeIndex++;
+                        this.timeSlider.value = this.currentTimeIndex;
+                        this.updateTimeDisplay();
+                        this.loadWeatherImage();
+                    } else {
+                        this.stopPlayback();
+                    }
+                }, 150); // 每150ms更新一次，创造流畅的播放效果
+            }
+
+            // 停止播放
+            stopPlayback() {
+                this.isPlaying = false;
+                this.playBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+                
+                if (this.playInterval) {
+                    clearInterval(this.playInterval);
+                    this.playInterval = null;
+                }
+            }
+
+            // 跳转到实时
+            goToLive() {
+                this.stopPlayback();
+                this.currentTimeIndex = 24;
+                this.timeSlider.value = 24;
+                this.updateTimeDisplay();
+                this.loadWeatherImage();
+            }
+
+            // 显示加载状态
+            showLoading() {
+                this.loading.style.display = 'block';
+            }
+
+            // 隐藏加载状态
+            hideLoading() {
+                this.loading.style.display = 'none';
+            }
+
+            // 显示错误信息
+            showError() {
+                this.errorMessage.style.display = 'block';
+                this.hideLoading();
+            }
+
+            // 隐藏错误信息
+            hideError() {
+                this.errorMessage.style.display = 'none';
+            }
+
+            // 切换叠加层显示
+            toggleOverlay(overlayElement, show, imageUrl) {
+                if (show) {
+                    // 只有在需要显示且还没有加载过图片时才加载
+                    if (!overlayElement.src) {
+                        overlayElement.src = imageUrl;
+                    }
+                    overlayElement.style.display = 'block';
+                } else {
+                    overlayElement.style.display = 'none';
+                }
+            }
+
+            // 获取用户位置
+            getUserLocation() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            this.userPosition = {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude
+                            };
+                            this.updateUserLocationPosition();
+                        },
+                        (error) => {
+                            console.log('获取位置失败:', error.message);
+                            // 显示错误信息
+                            this.locationErrorMessage.style.display = 'block';
+                            // 调试
+                            // this.userPosition = { lat: 1.299956, lng: 103.787612 };
+                            // this.updateUserLocationPosition();
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 300000 // 5分钟缓存
+                        }
+                    );
+                }
+            }
+
+            // 更新用户位置显示
+            updateUserLocationPosition() {
+                if (!this.userPosition) return;
+
+                // 检查用户是否在地图范围内
+                if (this.isUserInMapBounds()) {
+                    const position = this.convertLatLngToPixel(this.userPosition.lat, this.userPosition.lng);
+                    this.userLocation.style.left = position.x + 'px';
+                    this.userLocation.style.top = position.y + 'px';
+                    this.userLocation.style.display = 'block';
+                } else {
+                    this.userLocation.style.display = 'none';
+                }
+            }
+
+            // 检查用户是否在地图范围内
+            isUserInMapBounds() {
+                const { lat, lng } = this.userPosition;
+                const { topLeft, bottomRight } = this.mapBounds;
+                
+                return lat >= bottomRight.lat && lat <= topLeft.lat &&
+                       lng >= topLeft.lng && lng <= bottomRight.lng;
+            }
+
+            // 将经纬度转换为像素坐标
+            convertLatLngToPixel(lat, lng) {
+                const { topLeft, bottomRight, width, height } = this.mapBounds;
+                
+                // 计算在地图原始尺寸中的相对位置
+                const latRatio = (topLeft.lat - lat) / (topLeft.lat - bottomRight.lat);
+                const lngRatio = (lng - topLeft.lng) / (bottomRight.lng - topLeft.lng);
+                
+                const originalX = lngRatio * width;
+                const originalY = latRatio * height;
+                
+                // 获取当前底图的实际显示尺寸和位置
+                const baseMapRect = this.baseMap.getBoundingClientRect();
+                const containerRect = this.baseMap.parentElement.getBoundingClientRect();
+                
+                // 计算底图在容器中的偏移量（考虑object-fit: contain的居中效果）
+                const containerAspect = containerRect.width / containerRect.height;
+                const mapAspect = width / height;
+                
+                let offsetX = 0;
+                let offsetY = 0;
+                let scale = 1;
+                
+                if (containerAspect > mapAspect) {
+                    // 容器更宽，图片在垂直方向填满，水平方向居中
+                    scale = containerRect.height / height;
+                    offsetX = (containerRect.width - width * scale) / 2;
+                } else {
+                    // 容器更高，图片在水平方向填满，垂直方向居中
+                    scale = containerRect.width / width;
+                    offsetY = (containerRect.height - height * scale) / 2;
+                }
+                
+                // 计算在容器中的实际位置
+                const actualX = originalX * scale + offsetX;
+                const actualY = originalY * scale + offsetY;
+                
+                return { x: actualX, y: actualY };
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            new WeatherMap();
+        });
+
+        // 处理窗口大小变化
+        window.addEventListener('resize', () => {
+            // 可以在这里添加响应式处理逻辑
+        });
+    </script>
+</body>
+</html>

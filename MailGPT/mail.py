@@ -8,7 +8,11 @@ import base64
 import io
 from config import *
 
-client = OpenAI(api_key=OPENAI_API_KEY, base_url = "https://api.tu-zi.com/v1")
+# 使用本地 Ollama 服务
+client = OpenAI(
+    api_key="ollama",  # Ollama 不需要真实的 API key，但 OpenAI 客户端需要一个值
+    base_url="http://localhost:11434/v1"  # Ollama 的 API 端点
+)
 
 def decode_mime_header(header):
     """解码MIME编码的邮件头"""
@@ -151,7 +155,7 @@ def ask_gpt_with_images(prompt, images=None):
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",  # 使用支持视觉的模型
+            model="gemma3:27b",  # 使用 Ollama 的视觉模型
             messages=[{"role": "user", "content": message_content}],
             max_tokens=10000
         )
@@ -165,7 +169,7 @@ def ask_gpt_with_images(prompt, images=None):
 
 def ask_gpt(prompt):
     response = client.chat.completions.create(
-        model="gpt-4",
+        model="qwq:latest",  # 使用 Ollama 的文本模型
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content.strip()

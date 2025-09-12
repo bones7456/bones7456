@@ -1,2 +1,5 @@
 MailGPT/config.py
 MailGPT/__pycache__
+trade/__pycache__
+trade/config.py
+.DS_Store
