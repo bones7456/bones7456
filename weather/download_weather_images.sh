@@ -6,8 +6,9 @@ mkdir -p "$DIR"
 for h in {0..23}; do
   for m in {0..11}; do
     TIME=$(printf "%s%02d%02d" "$YESTERDAY" "$h" "$((m*5))")
-    URL="https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${TIME}00dBR.dpsri.png"
+    URL="https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${TIME}0000dBR.dpsri.png"
     FILE="$DIR/${TIME}.png"
+    #echo "$URL" "$FILE"
     [ -f "$FILE" ] || curl -s -f -o "$FILE" "$URL" || rm -f "$FILE"
   done
 done
