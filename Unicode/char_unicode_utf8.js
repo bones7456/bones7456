@@ -28,6 +28,8 @@
         .cu-ch   { font-size: 16px; }
         .cu-line { margin: 2px 0; }
         .cu-name { font-size: 12px; color: #9ca3af; margin-right: .4em; }
+        .cu-hint { margin-top: 12px; padding: 8px 12px; color: #dde1eb; font-size: 14px; min-height: 1.5em; }
+        .cu-hint-char { font-size: 48px; display: inline-block; vertical-align: middle; margin: 0 8px; }
       `;
       document.head.appendChild(style);
     }
@@ -46,32 +48,44 @@
           </thead>
           <tbody></tbody>
         </table>
+        <div class="cu-note">提示：彩色位会被搬运到 UTF‑8 的相应位置；灰色为固定前缀或高位补零。</div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">请点击：
           <button id="cu_add" type="button" class="cu-btn">新增自定义字符</button>
-          <button type="button" class="cu-btn" data-char="0">0</button>
-          <button type="button" class="cu-btn" data-char="A">A</button>
-          <button type="button" class="cu-btn" data-char="©">©</button>
-          <button type="button" class="cu-btn" data-char="€">€</button>
-          <button type="button" class="cu-btn" data-char="中">中</button>
-          <button type="button" class="cu-btn" data-char="Á">Á</button>
-          <button type="button" class="cu-btn" data-char="😀">😀</button>
-          <button type="button" class="cu-btn" data-char="❤️">❤️</button>
-          <button type="button" class="cu-btn" data-char="👋🏿">👋🏿</button>
-          <button type="button" class="cu-btn" data-char="👨‍👩‍👧‍👦">👨‍👩‍👧‍👦</button>
-          <button type="button" class="cu-btn" data-char="👨🏽‍❤️‍💋‍👨🏼">👨🏽‍❤️‍💋‍👨🏼</button>
-          <button type="button" class="cu-btn" data-char="𝕏">𝕏</button>
-          <button type="button" class="cu-btn" data-char="𝄞">𝄞</button>
-          <button type="button" class="cu-btn" data-char="𐀀">𐀀</button>
-          <button type="button" class="cu-btn" data-char="🀀">🀀</button>
-          <button type="button" class="cu-btn" data-char="𠀀">𠀀</button>
-          <button type="button" class="cu-btn" data-char="𠮷">𠮷</button>
+          <button type="button" class="cu-btn" data-char="0" data-note="数字">0</button>
+          <button type="button" class="cu-btn" data-char="A" data-note="字母">A</button>
+          <button type="button" class="cu-btn" data-char="©" data-note="版权符号">©</button>
+          <button type="button" class="cu-btn" data-char="€" data-note="欧元符号">€</button>
+          <button type="button" class="cu-btn" data-char="中" data-note="汉字">中</button>
+          <button type="button" class="cu-btn" data-char="Á" data-note="拉丁字母">Á</button>
+          <button type="button" class="cu-btn" data-char="😀" data-note="笑脸">😀</button>
+          <button type="button" class="cu-btn" data-char="❤️" data-note="爱心">❤️</button>
+          <button type="button" class="cu-btn" data-char="👋🏿" data-note="黑皮肤挥手">👋🏿</button>
+          <button type="button" class="cu-btn" data-char="🫱🏿‍🫲🏻" data-note="浅肤色 + 深肤色握手">🫱🏿‍🫲🏻</button>
+          <button type="button" class="cu-btn" data-char="👨‍👩‍👧‍👦" data-note="四口之家">👨‍👩‍👧‍👦</button>
+          <button type="button" class="cu-btn" data-char="👨🏽‍❤️‍💋‍👨🏼" data-note="男同接吻（中肤 + 浅肤）">👨🏽‍❤️‍💋‍👨🏼</button>
+          <button type="button" class="cu-btn" data-char="𝕏" data-note="数学双线大写 X">𝕏</button>
+          <button type="button" class="cu-btn" data-char="𝄞" data-note="音乐升号">𝄞</button>
+          <button type="button" class="cu-btn" data-char="𐀀" data-note="Linear B 音节字符（古文字）">𐀀</button>
+          <button type="button" class="cu-btn" data-char="🀀" data-note="麻将牌东风">🀀</button>
+          <button type="button" class="cu-btn" data-char="𠮷" data-note="日本汉字">𠮷</button>
+          <button type="button" class="cu-btn" data-char="𒀀" data-note="楔形文字符号 A">𒀀</button>
+          <button type="button" class="cu-btn" data-char="𒈗" data-note="楔形文字符号">𒈗</button>
+          <button type="button" class="cu-btn" data-char="𓀀" data-note="古埃及象形文字">𓀀</button>
+          <button type="button" class="cu-btn" data-char="𐎀" data-note="乌加里特文字（Ugaritic）">𐎀</button>
+          <button type="button" class="cu-btn" data-char="𐎠" data-note="古波斯楔形文字（Old Persian）">𐎠</button>
+          <button type="button" class="cu-btn" data-char="𐤀" data-note="腓尼基文字（Phoenician）">𐤀</button>
+          <button type="button" class="cu-btn" data-char="𐦀" data-note="麦罗埃文字（Meroitic Hieroglyphs）">𐦀</button>
+          <button type="button" class="cu-btn" data-char="𝌀" data-note="符号和象形文字扩展">𝌀</button>
+          <button type="button" class="cu-btn" data-char="𝌆" data-note="易经六十四卦符号（I Ching Hexagram Symbols）">𝌆</button>
         </div>
-        <div class="cu-note">提示：彩色位（w/x/y/z）会被搬运到 UTF‑8 的相应位置；灰色为固定前缀或高位补零。</div>
+        <div id="cu_hint" class="cu-hint" style="display: none;"></div>
+        
       </div>
     `;
   
     const tbody = container.querySelector("tbody");
     const addBtn = container.querySelector("#cu_add");
+    const hintDiv = container.querySelector("#cu_hint");
   
     /* ========== 工具函数 ========== */
   
@@ -320,8 +334,34 @@
         const char = btn.getAttribute("data-char");
         addRow(char);
       });
+      
+      // 鼠标悬停显示提示
+      btn.addEventListener("mouseenter", () => {
+        const char = btn.getAttribute("data-char");
+        const note = btn.getAttribute("data-note") || "";
+        const charDisplay = escapeHtml(char);
+        hintDiv.innerHTML = `插入“<span class="cu-hint-char">${charDisplay}</span>”这个${note}`;
+        hintDiv.style.display = "block";
+      });
+      
+      btn.addEventListener("mouseleave", () => {
+        hintDiv.style.display = "none";
+      });
     });
     
     addRow("🎾"); // 默认第一行预填"🎾"
   })();
   
+  document.getElementById("cu_download").addEventListener("click", () => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js";
+    s.onload = () => {
+        twemoji.parse(document.getElementById("content"));
+        document.querySelectorAll("#content img.emoji").forEach(img => {
+            img.style.height = "1em";
+            img.style.width = "auto";
+            img.style.verticalAlign = "middle";
+        });
+    };
+    document.head.appendChild(s);
+});
