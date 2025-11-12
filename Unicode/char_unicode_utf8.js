@@ -77,6 +77,7 @@
           <button type="button" class="cu-btn" data-char="𐦀" data-note="麦罗埃文字（Meroitic Hieroglyphs）">𐦀</button>
           <button type="button" class="cu-btn" data-char="𝌀" data-note="符号和象形文字扩展">𝌀</button>
           <button type="button" class="cu-btn" data-char="𝌆" data-note="易经六十四卦符号（I Ching Hexagram Symbols）">𝌆</button>
+          <button type="button" class="cu-btn" data-char="蚫󠄁" data-note="变体的蚫，后面有个VS18，字体不一定能显示得出差别">蚫󠄁</button>
         </div>
         <div id="cu_hint" class="cu-hint" style="display: none;"></div>
         
