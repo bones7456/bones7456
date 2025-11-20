@@ -78,8 +78,45 @@
             justify-content: space-between;
         }
 
-        .time-text {
+        .datetime-container {
             flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .date-text {
+            min-width: 90px;
+        }
+
+        .time-text {
+            min-width: 50px;
+        }
+
+        .date-picker {
+            min-width: 90px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            color: white;
+            padding: 2px 4px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .date-picker::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+
+        .date-picker::-webkit-datetime-edit {
+            color: white;
+        }
+
+        .date-picker::-webkit-datetime-edit-fields-wrapper {
+            color: white;
         }
 
         .control-buttons {
@@ -261,6 +298,26 @@
                 font-size: 11px;
             }
 
+            .datetime-container {
+                gap: 4px;
+            }
+
+            .date-text {
+                min-width: 75px;
+                font-size: 11px;
+            }
+
+            .time-text {
+                min-width: 45px;
+                font-size: 11px;
+            }
+
+            .date-picker {
+                min-width: 75px;
+                font-size: 11px;
+                padding: 2px 3px;
+            }
+
             .location-error-message {
                 font-size: 11px;
             }
@@ -306,6 +363,27 @@
                 font-size: 10px;
                 margin-bottom: 2px;
             }
+
+            .datetime-container {
+                gap: 3px;
+            }
+
+            .date-text {
+                min-width: 70px;
+                font-size: 10px;
+            }
+
+            .time-text {
+                min-width: 40px;
+                font-size: 10px;
+            }
+
+            .date-picker {
+                min-width: 70px;
+                font-size: 10px;
+                padding: 1px 2px;
+            }
+
             .location-error-message {
                 font-size: 10px;
             }
@@ -364,11 +442,15 @@
 
     <div class="time-controls">
         <div class="time-display" id="timeDisplay">
-            <span class="time-text" id="timeText">Time: 2025-09-11 15:15</span>
+            <div class="datetime-container">
+                <span class="date-text" id="dateText">2025-09-11</span>
+                <input type="date" id="datePicker" class="date-picker" style="display: none;" min="2025-11-01">
+                <span class="time-text" id="timeText">15:15</span>
+            </div>
             <div class="control-buttons">
                 <button id="playBtn" class="control-btn">▶</button>
                 <button id="pauseBtn" class="control-btn" style="display: none;">⏸</button>
-                <button id="liveBtn" class="control-btn">⏹</button>
+                <button id="historyBtn" class="control-btn" title="查看历史云图">📆</button>
             </div>
         </div>
         <div class="slider-container">
@@ -407,11 +489,13 @@
                 this.cloudOverlay = document.getElementById('cloudOverlay');
                 this.timeSlider = document.getElementById('timeSlider');
                 this.timeDisplay = document.getElementById('timeDisplay');
+                this.dateText = document.getElementById('dateText');
                 this.timeText = document.getElementById('timeText');
+                this.datePicker = document.getElementById('datePicker');
                 this.locationErrorMessage = document.getElementById('locationErrorMessage');
                 this.playBtn = document.getElementById('playBtn');
                 this.pauseBtn = document.getElementById('pauseBtn');
-                this.liveBtn = document.getElementById('liveBtn');
+                this.historyBtn = document.getElementById('historyBtn');
                 this.loading = document.getElementById('loading');
                 this.errorMessage = document.getElementById('errorMessage');
                 
@@ -441,6 +525,13 @@
                 this.isPlaying = false;
                 this.playInterval = null;
                 this.currentTimeIndex = 24; // 默认显示最新时间
+                this.isHistoryMode = false; // 是否为历史模式
+                this.selectedDate = null; // 选择的日期
+                
+                // 设置日期选择器的最大值为今天
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                this.datePicker.max = todayStr;
                 
                 this.init();
             }
@@ -467,8 +558,12 @@
                     this.stopPlayback();
                 });
 
-                this.liveBtn.addEventListener('click', () => {
-                    this.goToLive();
+                this.historyBtn.addEventListener('click', () => {
+                    this.toggleHistoryMode();
+                });
+
+                this.datePicker.addEventListener('change', (e) => {
+                    this.onDateSelected(e.target.value);
                 });
 
                 // 叠加层复选框事件
@@ -503,18 +598,47 @@
                 });
             }
 
-            // 获取当前时间，并计算2小时前的时间范围
+            // 获取时间范围
             getTimeRange() {
-                const now = new Date();
                 const times = [];
                 
-                // 生成过去2小时的时间点，每5分钟一个
-                for (let i = 0; i <= 24; i++) {
-                    const time = new Date(now.getTime() - (i * 5 * 60 * 1000));
-                    times.push(time);
+                if (this.isHistoryMode && this.selectedDate) {
+                    // 历史模式：生成选中日期当天的所有时间点（00:00-23:55，每5分钟一个）
+                    const selectedDateObj = new Date(this.selectedDate + 'T00:00:00');
+                    const isToday = this.isSelectedDateToday();
+                    
+                    if (isToday) {
+                        // 如果是今天，只生成到当前时间
+                        const now = new Date();
+                        const currentMinutes = now.getHours() * 60 + Math.floor(now.getMinutes() / 5) * 5;
+                        const maxIndex = currentMinutes / 5;
+                        
+                        for (let i = 0; i <= maxIndex; i++) {
+                            const time = new Date(selectedDateObj);
+                            time.setHours(Math.floor(i * 5 / 60));
+                            time.setMinutes((i * 5) % 60);
+                            times.push(time);
+                        }
+                    } else {
+                        // 历史日期：生成全天的时间点
+                        for (let i = 0; i < 288; i++) { // 24小时 * 12个5分钟间隔 = 288
+                            const time = new Date(selectedDateObj);
+                            time.setHours(Math.floor(i * 5 / 60));
+                            time.setMinutes((i * 5) % 60);
+                            times.push(time);
+                        }
+                    }
+                } else {
+                    // 实时模式：生成过去2小时的时间点，每5分钟一个
+                    const now = new Date();
+                    for (let i = 0; i <= 24; i++) {
+                        const time = new Date(now.getTime() - (i * 5 * 60 * 1000));
+                        times.push(time);
+                    }
+                    return times.reverse(); // 从最早到最新
                 }
                 
-                return times.reverse(); // 从最早到最新
+                return times; // 历史模式已经是从早到晚的顺序
             }
 
             // 格式化时间为URL所需的格式
@@ -530,8 +654,17 @@
             }
 
             // 生成云图URL
-            generateCloudImageUrl(timeString) {
-                return `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${timeString}00dBR.dpsri.png`;
+            generateCloudImageUrl(timeString, date) {
+                if (this.isHistoryMode && this.selectedDate && !this.isSelectedDateToday()) {
+                    // 历史日期：从自己的服务器获取
+                    // timeString格式：YYYYMMDDHHMMSS，需要提取YYYYMMDD和HHMM
+                    const dateStr = timeString.substring(0, 8); // YYYYMMDD
+                    const timeStr = timeString.substring(8, 12); // HHMM
+                    return `https://luy.li/data/weather_images/${dateStr}/${dateStr}${timeStr}.png`;
+                } else {
+                    // 实时模式或今天：从weather.gov.sg获取
+                    return `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${timeString}00dBR.dpsri.png`;
+                }
             }
 
             // 加载天气图片
@@ -546,7 +679,7 @@
                 // 归一化到5分钟时间点，比如 2:00、2:05、2:10
                 selectedTime.setMinutes(Math.floor(selectedTime.getMinutes() / 5) * 5, 0, 0);
                 const timeString = this.formatTimeForUrl(selectedTime);
-                const imageUrl = this.generateCloudImageUrl(timeString);
+                const imageUrl = this.generateCloudImageUrl(timeString, selectedTime);
                 
                 this.showLoading();
                 this.hideError();
@@ -576,7 +709,7 @@
                 // 归一化到5分钟时间点
                 selectedTime.setMinutes(Math.floor(selectedTime.getMinutes() / 5) * 5, 0, 0);
                 const timeString = this.formatTimeForUrl(selectedTime);
-                const imageUrl = this.generateCloudImageUrl(timeString);
+                const imageUrl = this.generateCloudImageUrl(timeString, selectedTime);
                 
                 const img = new Image();
                 img.onload = () => {
@@ -602,22 +735,85 @@
                 const selectedTime = times[this.currentTimeIndex];
                 // 归一化到5分钟时间点
                 selectedTime.setMinutes(Math.floor(selectedTime.getMinutes() / 5) * 5, 0, 0);
-                const timeString = selectedTime.toLocaleString('zh-CN', {
+                
+                // 更新日期部分
+                const dateString = selectedTime.toLocaleString('zh-CN', {
                     year: 'numeric',
                     month: '2-digit',
-                    day: '2-digit',
+                    day: '2-digit'
+                });
+                this.dateText.textContent = dateString;
+                
+                // 更新时间部分
+                const timeString = selectedTime.toLocaleString('zh-CN', {
                     hour: '2-digit',
                     minute: '2-digit'
                 });
+                this.timeText.textContent = timeString;
+            }
+
+            // 切换历史模式
+            toggleHistoryMode() {
+                this.isHistoryMode = !this.isHistoryMode;
                 
-                this.timeText.textContent = `Time: ${timeString}`;
+                if (this.isHistoryMode) {
+                    // 切换到历史模式：显示日期选择器，隐藏日期文本（时间部分始终显示）
+                    this.dateText.style.display = 'none';
+                    this.datePicker.style.display = 'block';
+                    // 设置默认日期为今天
+                    const today = new Date();
+                    const todayStr = today.toISOString().split('T')[0];
+                    this.datePicker.value = todayStr;
+                    this.onDateSelected(todayStr);
+                } else {
+                    // 切换回实时模式：隐藏日期选择器，显示日期文本（时间部分始终显示）
+                    this.dateText.style.display = 'block';
+                    this.datePicker.style.display = 'none';
+                    this.selectedDate = null;
+                    this.stopPlayback();
+                    this.loadCurrentWeather();
+                }
+            }
+
+            // 日期选择处理
+            onDateSelected(dateString) {
+                this.selectedDate = dateString;
+                this.stopPlayback();
+                
+                const times = this.getTimeRange();
+                const maxIndex = times.length - 1;
+                
+                // 更新滑块范围
+                this.timeSlider.min = 0;
+                this.timeSlider.max = maxIndex;
+                
+                // 如果是今天，显示到当前时间；如果是历史日期，显示到23:55
+                if (this.isSelectedDateToday()) {
+                    // 今天：显示最新时间
+                    this.currentTimeIndex = maxIndex;
+                } else {
+                    // 历史日期：显示最后时间（23:55）
+                    this.currentTimeIndex = maxIndex;
+                }
+                
+                this.timeSlider.value = this.currentTimeIndex;
+                this.updateTimeDisplay();
+                this.loadWeatherImage();
+            }
+
+            // 检查选择的日期是否为今天
+            isSelectedDateToday() {
+                if (!this.selectedDate) return false;
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                return this.selectedDate === todayStr;
             }
 
             // 开始播放
             startPlayback() {
                 if (this.isPlaying) return;
                 
-                // 先设置到时间轴开始位置（2小时前）
+                // 先设置到时间轴开始位置
                 this.currentTimeIndex = 0;
                 this.timeSlider.value = 0;
                 this.updateTimeDisplay();
@@ -627,8 +823,11 @@
                 this.playBtn.style.display = 'none';
                 this.pauseBtn.style.display = 'inline-block';
                 
+                const times = this.getTimeRange();
+                const maxIndex = times.length - 1;
+                
                 this.playInterval = setInterval(() => {
-                    if (this.currentTimeIndex < 24) {
+                    if (this.currentTimeIndex < maxIndex) {
                         this.currentTimeIndex++;
                         this.timeSlider.value = this.currentTimeIndex;
                         this.updateTimeDisplay();
@@ -649,15 +848,6 @@
                     clearInterval(this.playInterval);
                     this.playInterval = null;
                 }
-            }
-
-            // 跳转到实时
-            goToLive() {
-                this.stopPlayback();
-                this.currentTimeIndex = 24;
-                this.timeSlider.value = 24;
-                this.updateTimeDisplay();
-                this.loadWeatherImage();
             }
 
             // 显示加载状态
