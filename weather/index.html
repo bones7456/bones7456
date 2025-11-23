@@ -528,10 +528,16 @@
                 this.isHistoryMode = false; // 是否为历史模式
                 this.selectedDate = null; // 选择的日期
                 
-                // 设置日期选择器的最大值为今天
-                const today = new Date();
-                const todayStr = today.toISOString().split('T')[0];
+                // 设置日期选择器的最大值为今天（GMT+8 新加坡时间）
+                const todayStr = new Date().toLocaleDateString('en-CA', { 
+                    timeZone: 'Asia/Singapore',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
                 this.datePicker.max = todayStr;
+                // 设置日期选择器的最小值为2025-11-01
+                this.datePicker.min = '2025-11-01';
                 
                 this.init();
             }
@@ -608,8 +614,8 @@
                     const isToday = this.isSelectedDateToday();
                     
                     if (isToday) {
-                        // 如果是今天，只生成到当前时间
-                        const now = new Date();
+                        // 如果是今天，只生成到当前时间（GMT+8 新加坡时间）
+                        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
                         const currentMinutes = now.getHours() * 60 + Math.floor(now.getMinutes() / 5) * 5;
                         const maxIndex = currentMinutes / 5;
                         
@@ -629,8 +635,8 @@
                         }
                     }
                 } else {
-                    // 实时模式：生成过去2小时的时间点，每5分钟一个
-                    const now = new Date();
+                    // 实时模式：生成过去2小时的时间点，每5分钟一个（GMT+8 新加坡时间）
+                    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
                     for (let i = 0; i <= 24; i++) {
                         const time = new Date(now.getTime() - (i * 5 * 60 * 1000));
                         times.push(time);
@@ -724,6 +730,9 @@
 
             // 加载当前天气
             loadCurrentWeather() {
+                // 实时模式：过去2小时共25个时间点（索引0-24）
+                this.timeSlider.min = 0;
+                this.timeSlider.max = 24;
                 this.currentTimeIndex = 24; // 最新时间
                 this.timeSlider.value = 24;
                 this.loadWeatherImage();
@@ -736,16 +745,18 @@
                 // 归一化到5分钟时间点
                 selectedTime.setMinutes(Math.floor(selectedTime.getMinutes() / 5) * 5, 0, 0);
                 
-                // 更新日期部分
-                const dateString = selectedTime.toLocaleString('zh-CN', {
+                // 更新日期部分（GMT+8 新加坡时间，自适应用户语言设置）
+                const dateString = selectedTime.toLocaleDateString(undefined, {
+                    timeZone: 'Asia/Singapore',
                     year: 'numeric',
                     month: '2-digit',
                     day: '2-digit'
                 });
                 this.dateText.textContent = dateString;
                 
-                // 更新时间部分
-                const timeString = selectedTime.toLocaleString('zh-CN', {
+                // 更新时间部分（GMT+8 新加坡时间，自适应用户语言设置）
+                const timeString = selectedTime.toLocaleTimeString(undefined, {
+                    timeZone: 'Asia/Singapore',
                     hour: '2-digit',
                     minute: '2-digit'
                 });
@@ -760,9 +771,14 @@
                     // 切换到历史模式：显示日期选择器，隐藏日期文本（时间部分始终显示）
                     this.dateText.style.display = 'none';
                     this.datePicker.style.display = 'block';
-                    // 设置默认日期为今天
-                    const today = new Date();
-                    const todayStr = today.toISOString().split('T')[0];
+                    // 设置默认日期为今天（GMT+8 新加坡时间）
+                    const todayStr = new Date().toLocaleDateString('en-CA', { 
+                        timeZone: 'Asia/Singapore',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                    console.log('GMT+8 Today:', todayStr);
                     this.datePicker.value = todayStr;
                     this.onDateSelected(todayStr);
                 } else {
@@ -801,11 +817,15 @@
                 this.loadWeatherImage();
             }
 
-            // 检查选择的日期是否为今天
+            // 检查选择的日期是否为今天（GMT+8 新加坡时间）
             isSelectedDateToday() {
                 if (!this.selectedDate) return false;
-                const today = new Date();
-                const todayStr = today.toISOString().split('T')[0];
+                const todayStr = new Date().toLocaleDateString('en-CA', { 
+                    timeZone: 'Asia/Singapore',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
                 return this.selectedDate === todayStr;
             }
 
