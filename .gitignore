@@ -3,3 +3,4 @@ MailGPT/__pycache__
 trade/__pycache__
 trade/config.py
 .DS_Store
+reader-printer/node_modules/*

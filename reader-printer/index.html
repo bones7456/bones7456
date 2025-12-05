@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Clipper for Print</title>
+    <style>
+        /* 全局样式 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Georgia, Serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        /* 顶部输入栏样式 */
+        .input-area {
+            max-width: 800px;
+            margin: 0 auto 30px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        button:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+        }
+
+        /* 清理模式按钮 */
+        #cleanBtn {
+            background-color: #fd7e14;
+        }
+        
+        #cleanBtn.active {
+            background-color: #dc3545;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); }
+        }
+
+        /* 清理模式提示条 */
+        .clean-mode-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #dc3545, #fd7e14);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .clean-mode-banner.show {
+            display: block;
+        }
+        
+        .clean-mode-banner span {
+            margin-right: 15px;
+        }
+        
+        .clean-mode-banner button {
+            background: white;
+            color: #dc3545;
+            padding: 6px 16px;
+            font-size: 14px;
+        }
+
+        /* 阅读模式/打印预览容器 */
+        #reader-content {
+            max-width: 210mm; /* A4 宽度 */
+            min-height: 297mm;
+            margin: 0 auto;
+            background: white;
+            padding: 20mm; /* 打印边距 */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box; /* 包含 padding */
+        }
+
+        /* 清理模式下的内容区域 */
+        body.clean-mode #reader-content {
+            margin-top: 60px;
+        }
+
+        /* 清理模式下元素的高亮效果 */
+        body.clean-mode #reader-content *:hover {
+            outline: 3px solid #dc3545 !important;
+            outline-offset: 2px;
+            cursor: crosshair !important;
+            background-color: rgba(220, 53, 69, 0.1) !important;
+        }
+        
+        /* 元素删除动画 */
+        .element-removing {
+            animation: fadeOutShrink 0.3s ease forwards;
+        }
+        
+        @keyframes fadeOutShrink {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.8); height: 0; margin: 0; padding: 0; }
+        }
+
+        /* 相似元素高亮 */
+        .similar-element-highlight {
+            outline: 3px dashed #fd7e14 !important;
+            outline-offset: 2px;
+            background-color: rgba(253, 126, 20, 0.15) !important;
+        }
+
+        /* 批量清理确认对话框 */
+        .batch-clean-dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 24px 32px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            z-index: 2000;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .batch-clean-dialog.show {
+            display: block;
+        }
+        
+        .batch-clean-dialog h3 {
+            margin: 0 0 12px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .batch-clean-dialog p {
+            margin: 0 0 20px 0;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .batch-clean-dialog .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .batch-clean-dialog button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border-radius: 6px;
+        }
+        
+        .batch-clean-dialog .btn-batch {
+            background-color: #dc3545;
+        }
+        
+        .batch-clean-dialog .btn-single {
+            background-color: #fd7e14;
+        }
+        
+        .batch-clean-dialog .btn-cancel {
+            background-color: #6c757d;
+        }
+        
+        /* 对话框遮罩 */
+        .dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1500;
+        }
+        
+        .dialog-overlay.show {
+            display: block;
+        }
+
+        /* 阅读内容排版优化 */
+        #reader-content h1 {
+            font-size: 24pt;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        #reader-content img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 20px auto;
+        }
+
+        #reader-content p {
+            font-size: 14pt; /* 大字体，适合阅读 */
+            line-height: 1.6;
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        #reader-content pre {
+            white-space: pre-wrap;
+            background: #eee;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        /* 保留原始文章的字体样式 */
+        #reader-content strong,
+        #reader-content b {
+            font-weight: bold;
+        }
+
+        #reader-content em,
+        #reader-content i {
+            font-style: italic;
+        }
+
+        #reader-content u {
+            text-decoration: underline;
+        }
+
+        #reader-content s,
+        #reader-content del,
+        #reader-content strike {
+            text-decoration: line-through;
+        }
+
+        #reader-content mark {
+            background-color: #ffeb3b;
+            padding: 0 2px;
+        }
+
+        #reader-content sub {
+            vertical-align: sub;
+            font-size: smaller;
+        }
+
+        #reader-content sup {
+            vertical-align: super;
+            font-size: smaller;
+        }
+
+        #reader-content code {
+            font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+            background-color: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        #reader-content blockquote {
+            border-left: 4px solid #ccc;
+            margin: 20px 0;
+            padding: 10px 20px;
+            background-color: #f9f9f9;
+            font-style: italic;
+            color: #555;
+        }
+
+        /* 确保 blockquote 内所有元素继承斜体 */
+        #reader-content blockquote * {
+            font-style: inherit;
+        }
+
+        /* figure 引用块样式（常见于新闻网站） */
+        #reader-content figure {
+            margin: 20px 0;
+            padding: 0;
+        }
+
+        #reader-content figure blockquote {
+            margin: 0;
+        }
+
+        #reader-content figcaption,
+        #reader-content cite {
+            font-style: italic;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* 一些网站使用 aside 作为引用块 */
+        #reader-content aside {
+            border-left: 4px solid #ccc;
+            margin: 20px 0;
+            padding: 10px 20px;
+            background-color: #f9f9f9;
+            font-style: italic;
+            color: #555;
+        }
+
+        #reader-content a {
+            color: #007bff;
+            text-decoration: underline;
+        }
+
+        /* 保留标题层级样式 */
+        #reader-content h2 {
+            font-size: 20pt;
+            font-weight: bold;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        #reader-content h3 {
+            font-size: 16pt;
+            font-weight: bold;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+
+        #reader-content h4 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        #reader-content h5,
+        #reader-content h6 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        /* 列表样式 */
+        #reader-content ul,
+        #reader-content ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        #reader-content li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        /* --- 打印专用样式 --- */
+        @media print {
+            body {
+                background: white;
+                margin: 0;
+                padding: 0;
+            }
+            
+            /* 打印时隐藏输入框和背景 */
+            .input-area, .no-print, .clean-mode-banner {
+                display: none !important;
+            }
+
+            #reader-content {
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            
+            /* 强制背景打印（如果需要打印图片背景） */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 清理模式提示条 -->
+    <div class="clean-mode-banner" id="cleanModeBanner">
+        <span>🧹 清理模式已开启 - 点击页面中要移除的元素</span>
+        <button onclick="toggleCleanMode()">完成清理</button>
+    </div>
+
+    <!-- 批量清理对话框遮罩 -->
+    <div class="dialog-overlay" id="dialogOverlay"></div>
+    
+    <!-- 批量清理确认对话框 -->
+    <div class="batch-clean-dialog" id="batchCleanDialog">
+        <h3>🔍 发现相似元素</h3>
+        <p id="batchCleanMsg">发现 X 个类似元素，是否批量清理？</p>
+        <div class="btn-group">
+            <button class="btn-batch" onclick="confirmBatchClean(true)">批量清理全部</button>
+            <button class="btn-single" onclick="confirmBatchClean(false)">仅清理当前</button>
+            <button class="btn-cancel" onclick="cancelBatchClean()">取消</button>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="urlInput" placeholder="输入文章 URL (例如: https://...)" />
+        <button id="goBtn" onclick="fetchArticle()">提取并预览</button>
+        <button id="cleanBtn" onclick="toggleCleanMode()">🧹 清理元素</button>
+        <button onclick="window.print()" style="background-color: #28a745;">打印 / PDF</button>
+    </div>
+
+    <div id="reader-content">
+        <div style="text-align: center; color: #888; margin-top: 50px;">
+            请在上方输入链接以开始...
+        </div>
+    </div>
+
+    <script>
+        // 清理模式状态
+        let isCleanMode = false;
+        let pendingTarget = null;      // 待处理的目标元素
+        let similarElements = [];       // 相似元素列表
+        
+        // 切换清理模式
+        function toggleCleanMode() {
+            isCleanMode = !isCleanMode;
+            const body = document.body;
+            const cleanBtn = document.getElementById('cleanBtn');
+            const banner = document.getElementById('cleanModeBanner');
+            const contentDiv = document.getElementById('reader-content');
+            
+            if (isCleanMode) {
+                body.classList.add('clean-mode');
+                cleanBtn.classList.add('active');
+                cleanBtn.textContent = '❌ 退出清理';
+                banner.classList.add('show');
+                
+                // 添加点击事件监听器
+                contentDiv.addEventListener('click', handleElementClick);
+            } else {
+                body.classList.remove('clean-mode');
+                cleanBtn.classList.remove('active');
+                cleanBtn.textContent = '🧹 清理元素';
+                banner.classList.remove('show');
+                
+                // 移除点击事件监听器
+                contentDiv.removeEventListener('click', handleElementClick);
+                
+                // 清理对话框状态
+                cancelBatchClean();
+            }
+        }
+        
+        // 获取元素的特征签名（用于比较相似性）
+        function getElementSignature(el) {
+            const tagName = el.tagName.toLowerCase();
+            const className = el.className.replace(/\s*(similar-element-highlight|element-removing)\s*/g, '').trim();
+            const parentTag = el.parentElement ? el.parentElement.tagName.toLowerCase() : '';
+            
+            // 获取关键的计算样式
+            const computedStyle = window.getComputedStyle(el);
+            const styleSignature = [
+                computedStyle.fontSize,
+                computedStyle.fontWeight,
+                computedStyle.fontStyle,      // 斜体/正常
+                computedStyle.textDecoration, // 下划线/删除线等
+                computedStyle.color,
+                computedStyle.display,
+                computedStyle.padding,
+                computedStyle.margin
+            ].join('|');
+            
+            // 检查内部结构特征
+            const hasItalicChild = el.querySelector('em, i') !== null;
+            const hasBoldChild = el.querySelector('strong, b') !== null;
+            const hasLinkChild = el.querySelector('a') !== null;
+            const childTagsSignature = Array.from(el.children).map(c => c.tagName.toLowerCase()).join(',');
+            
+            // 文本内容长度范围（短/中/长）
+            const textLength = el.textContent.trim().length;
+            const lengthCategory = textLength < 50 ? 'short' : (textLength < 200 ? 'medium' : 'long');
+            
+            return `${tagName}::${className}::${parentTag}::${styleSignature}::${hasItalicChild}::${hasBoldChild}::${hasLinkChild}::${childTagsSignature}::${lengthCategory}`;
+        }
+        
+        // 查找相似元素
+        function findSimilarElements(target) {
+            const contentDiv = document.getElementById('reader-content');
+            const targetSignature = getElementSignature(target);
+            const allElements = contentDiv.querySelectorAll('*');
+            const similar = [];
+            
+            allElements.forEach(el => {
+                if (el !== target && !el.classList.contains('element-removing')) {
+                    const elSignature = getElementSignature(el);
+                    if (elSignature === targetSignature) {
+                        similar.push(el);
+                    }
+                }
+            });
+            
+            return similar;
+        }
+        
+        // 高亮相似元素
+        function highlightSimilarElements(elements) {
+            elements.forEach(el => {
+                el.classList.add('similar-element-highlight');
+            });
+        }
+        
+        // 清除相似元素高亮
+        function clearSimilarHighlights() {
+            document.querySelectorAll('.similar-element-highlight').forEach(el => {
+                el.classList.remove('similar-element-highlight');
+            });
+        }
+        
+        // 显示批量清理对话框
+        function showBatchCleanDialog(count) {
+            const dialog = document.getElementById('batchCleanDialog');
+            const overlay = document.getElementById('dialogOverlay');
+            const msg = document.getElementById('batchCleanMsg');
+            
+            msg.textContent = `发现 ${count} 个类似元素，是否批量清理？`;
+            dialog.classList.add('show');
+            overlay.classList.add('show');
+        }
+        
+        // 隐藏批量清理对话框
+        function hideBatchCleanDialog() {
+            const dialog = document.getElementById('batchCleanDialog');
+            const overlay = document.getElementById('dialogOverlay');
+            
+            dialog.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+        
+        // 移除元素（带动画）
+        function removeElement(el) {
+            el.classList.add('element-removing');
+            setTimeout(() => {
+                el.remove();
+            }, 300);
+        }
+        
+        // 确认批量清理
+        function confirmBatchClean(batchMode) {
+            if (pendingTarget) {
+                removeElement(pendingTarget);
+                
+                if (batchMode && similarElements.length > 0) {
+                    // 批量删除所有相似元素
+                    similarElements.forEach((el, index) => {
+                        // 稍微错开删除时间，产生连锁动画效果
+                        setTimeout(() => {
+                            removeElement(el);
+                        }, index * 50);
+                    });
+                }
+            }
+            
+            // 清理状态
+            clearSimilarHighlights();
+            hideBatchCleanDialog();
+            pendingTarget = null;
+            similarElements = [];
+        }
+        
+        // 取消批量清理
+        function cancelBatchClean() {
+            clearSimilarHighlights();
+            hideBatchCleanDialog();
+            pendingTarget = null;
+            similarElements = [];
+        }
+        
+        // 处理元素点击（清理模式下）
+        function handleElementClick(e) {
+            if (!isCleanMode) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const target = e.target;
+            const contentDiv = document.getElementById('reader-content');
+            
+            // 不允许删除根容器
+            if (target === contentDiv) return;
+            
+            // 查找相似元素
+            const similar = findSimilarElements(target);
+            
+            if (similar.length > 0) {
+                // 找到相似元素，显示对话框
+                pendingTarget = target;
+                similarElements = similar;
+                
+                // 高亮显示相似元素
+                highlightSimilarElements(similar);
+                target.classList.add('similar-element-highlight');
+                
+                // 显示确认对话框
+                showBatchCleanDialog(similar.length + 1); // +1 包含当前选中的元素
+            } else {
+                // 没有相似元素，直接删除
+                removeElement(target);
+            }
+        }
+        
+        // ESC 键退出清理模式或取消对话框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (pendingTarget) {
+                    // 如果有待处理的元素，先取消对话框
+                    cancelBatchClean();
+                } else if (isCleanMode) {
+                    toggleCleanMode();
+                }
+            }
+        });
+
+        async function fetchArticle() {
+            const url = document.getElementById('urlInput').value;
+            const contentDiv = document.getElementById('reader-content');
+            const btn = document.getElementById('goBtn');
+
+            if (!url) return alert("请输入 URL");
+            
+            // 如果在清理模式，先退出
+            if (isCleanMode) {
+                toggleCleanMode();
+            }
+
+            // 简单的加载状态
+            btn.disabled = true;
+            btn.innerText = "处理中...";
+            contentDiv.innerHTML = '<p style="text-align:center">正在分析网页并清理广告...</p>';
+
+            try {
+                // 调用我们刚才写的 Node.js 后端
+                // 假设后端运行在 localhost:3000
+                const res = await fetch(`http://localhost:3000/api/read?url=${encodeURIComponent(url)}`);
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                // 更新页面标题为文章标题或URL
+                document.title = url;
+
+                // 渲染内容
+                contentDiv.innerHTML = `
+                    <h1>${data.title}</h1>
+                    ${data.byline ? `<p style="font-style:italic; color:#666">By ${data.byline}</p>` : ''}
+                    <hr/>
+                    ${data.content}
+                `;
+
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = `<p style="color:red; text-align:center">提取失败: ${err.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "提取并预览";
+            }
+        }
+    </script>
+</body>
+</html>
