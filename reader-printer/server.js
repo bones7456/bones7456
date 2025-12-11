@@ -349,5 +349,23 @@ app.get('/api/read', async (req, res) => {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// 导出启动函数，而不是直接启动
+function startServer(port = 3000) {
+    return new Promise((resolve, reject) => {
+        try {
+            app.listen(port, () => {
+                console.log(`Server running on http://localhost:${port}`);
+                resolve();
+            });
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+// 如果直接运行 server.js，则启动服务器（用于开发环境）
+if (require.main === module) {
+    startServer(3000);
+}
+
+module.exports = { startServer, app };

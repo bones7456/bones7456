@@ -2,8 +2,11 @@
   "name": "reader-printer",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,8 +16,37 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "axios": "^1.13.2",
+    "body-parser": "^2.2.1",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "jsdom": "^27.0.1"
+  },
+  "devDependencies": {
+    "electron": "^39.2.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.readerprinter.app",
+    "productName": "Reader Printer",
+    "asarUnpack": [
+      "server.js"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "identity": null,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "files": [
+      "**/*"
+    ]
   }
 }
