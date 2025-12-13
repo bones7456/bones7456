@@ -31,6 +31,29 @@
     "asarUnpack": [
       "server.js"
     ],
+    "files": [
+      "**/*",
+      "!**/*.{md,txt}",
+      "!**/*.map",
+      "!**/test/**/*",
+      "!**/tests/**/*",
+      "!**/__tests__/**/*",
+      "!**/*.test.js",
+      "!**/*.spec.js",
+      "!**/example/**/*",
+      "!**/examples/**/*",
+      "!**/docs/**/*",
+      "!**/.github/**/*",
+      "!**/.git/**/*",
+      "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme,LICENSE,LICENSE.txt,license,History.md,CONTRIBUTING.md,AUTHORS,Makefile}",
+      "!**/node_modules/**/*.{md,txt,map}",
+      "!**/node_modules/**/test/**/*",
+      "!**/node_modules/**/tests/**/*",
+      "!**/node_modules/**/__tests__/**/*",
+      "!**/node_modules/**/*.test.js",
+      "!**/node_modules/**/*.spec.js"
+    ],
+    "compression": "maximum",
     "mac": {
       "category": "public.app-category.utilities",
       "identity": null,
@@ -44,9 +67,6 @@
           ]
         }
       ]
-    },
-    "files": [
-      "**/*"
-    ]
+    }
   }
 }
