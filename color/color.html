@@ -13,6 +13,14 @@
       --border: rgba(255,255,255,.10);
       --shadow: 0 10px 24px rgba(0,0,0,.35);
     }
+    :root.light{
+      --bg:#f5f5f5;
+      --panel:#ffffff;
+      --text:#1a1a1a;
+      --muted:#666666;
+      --border: rgba(0,0,0,.12);
+      --shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
     body{
       margin:0;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
@@ -20,9 +28,13 @@
       background: linear-gradient(180deg, #070a0f 0%, #0b0f14 60%, #0b0f14 100%);
       color: var(--text);
       padding: 28px 18px 48px;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    :root.light body{
+      background: linear-gradient(180deg, #f0f0f0 0%, #f5f5f5 60%, #f5f5f5 100%);
     }
     header{
-      max-width: 1100px;
+      max-width: 1475px;
       margin: 0 auto 18px;
     }
     h1{
@@ -37,7 +49,7 @@
       line-height: 1.6;
     }
     .grid{
-      max-width: 1100px;
+      max-width: 1475px;
       margin: 18px auto 0;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -49,6 +61,10 @@
       border-radius: 14px;
       box-shadow: var(--shadow);
       overflow: hidden;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+    :root.light section{
+      background: var(--panel);
     }
     section h2{
       font-size: 14px;
@@ -71,6 +87,11 @@
       border: 1px solid rgba(255,255,255,.08);
       border-radius: 12px;
       background: rgba(0,0,0,.18);
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+    :root.light .item{
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
     }
     .swatch{
       width: 44px;
@@ -78,6 +99,11 @@
       border-radius: 10px;
       border: 1px solid rgba(255,255,255,.18);
       box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
+      transition: border-color 0.3s ease;
+    }
+    :root.light .swatch{
+      border: 1px solid rgba(0,0,0,.15);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.5);
     }
     .meta{
       display:grid;
@@ -99,6 +125,13 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .word .ipa{
+      font-weight: 400;
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 6px;
+      opacity: 0.85;
+    }
     .hex{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-size: 12px;
@@ -111,7 +144,7 @@
       line-height: 1.45;
     }
     .note{
-      max-width: 1100px;
+      max-width: 1475px;
       margin: 14px auto 0;
       color: var(--muted);
       font-size: 12px;
@@ -128,10 +161,33 @@
       background: rgba(255,255,255,.06);
       color: var(--muted);
       vertical-align: middle;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+    :root.light .badge{
+      background: rgba(0,0,0,.06);
+    }
+    .theme-toggle{
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+    .theme-toggle:hover{
+      opacity: 0.8;
     }
   </style>
 </head>
 <body>
+  <button class="theme-toggle" onclick="toggleTheme()">🌓 切换背景</button>
   <header>
     <h1>进阶但常用的英语颜色形容词（含中文解释 + 色块）</h1>
     <p>
@@ -148,7 +204,7 @@
         <div class="item">
           <div class="swatch" style="background:#DC143C"></div>
           <div class="meta">
-            <div class="top"><div class="word">Crimson</div><div class="hex">#DC143C</div></div>
+            <div class="top"><div class="word">Crimson<span class="ipa">/ˈkrɪmzən/</span></div><div class="hex">#DC143C</div></div>
             <div class="zh">深红色；文学/正式语境常用，色感浓郁。</div>
           </div>
         </div>
@@ -156,7 +212,7 @@
         <div class="item">
           <div class="swatch" style="background:#FF2400"></div>
           <div class="meta">
-            <div class="top"><div class="word">Scarlet</div><div class="hex">#FF2400</div></div>
+            <div class="top"><div class="word">Scarlet<span class="ipa">/ˈskɑːrlɪt/</span></div><div class="hex">#FF2400</div></div>
             <div class="zh">鲜红、亮红；饱和度高、很“醒目”的红。</div>
           </div>
         </div>
@@ -164,7 +220,7 @@
         <div class="item">
           <div class="swatch" style="background:#800020"></div>
           <div class="meta">
-            <div class="top"><div class="word">Burgundy</div><div class="hex">#800020</div></div>
+            <div class="top"><div class="word">Burgundy<span class="ipa">/ˈbɜːrɡəndi/</span></div><div class="hex">#800020</div></div>
             <div class="zh">酒红色；偏紫调，服装/家居描述里很常见。</div>
           </div>
         </div>
@@ -172,7 +228,7 @@
         <div class="item">
           <div class="swatch" style="background:#800000"></div>
           <div class="meta">
-            <div class="top"><div class="word">Maroon</div><div class="hex">#800000</div></div>
+            <div class="top"><div class="word">Maroon<span class="ipa">/məˈruːn/</span></div><div class="hex">#800000</div></div>
             <div class="zh">暗红偏棕；比 burgundy 更“沉”。</div>
           </div>
         </div>
@@ -180,7 +236,7 @@
         <div class="item">
           <div class="swatch" style="background:#E0115F"></div>
           <div class="meta">
-            <div class="top"><div class="word">Ruby</div><div class="hex">#E0115F</div></div>
+            <div class="top"><div class="word">Ruby<span class="ipa">/ˈruːbi/</span></div><div class="hex">#E0115F</div></div>
             <div class="zh">宝石红；明亮通透、偏粉红调。</div>
           </div>
         </div>
@@ -188,7 +244,7 @@
         <div class="item">
           <div class="swatch" style="background:#B22222"></div>
           <div class="meta">
-            <div class="top"><div class="word">Brick-red</div><div class="hex">#B22222</div></div>
+            <div class="top"><div class="word">Brick-red<span class="ipa">/brɪk red/</span></div><div class="hex">#B22222</div></div>
             <div class="zh">砖红；偏土、偏暖，常用于建筑/复古风格。</div>
           </div>
         </div>
@@ -196,7 +252,7 @@
         <div class="item">
           <div class="swatch" style="background:#FF007F"></div>
           <div class="meta">
-            <div class="top"><div class="word">Rose</div><div class="hex">#FF007F</div></div>
+            <div class="top"><div class="word">Rose<span class="ipa">/roʊz/</span></div><div class="hex">#FF007F</div></div>
             <div class="zh">玫瑰红；粉红偏红，浪漫优雅，常用于花卉/时尚描述。</div>
           </div>
         </div>
@@ -204,7 +260,7 @@
         <div class="item">
           <div class="swatch" style="background:#DE3163"></div>
           <div class="meta">
-            <div class="top"><div class="word">Cherry</div><div class="hex">#DE3163</div></div>
+            <div class="top"><div class="word">Cherry<span class="ipa">/ˈtʃeri/</span></div><div class="hex">#DE3163</div></div>
             <div class="zh">樱桃红；明亮鲜艳，常用于形容水果/唇色。</div>
           </div>
         </div>
@@ -212,7 +268,7 @@
         <div class="item">
           <div class="swatch" style="background:#FF7F50"></div>
           <div class="meta">
-            <div class="top"><div class="word">Coral</div><div class="hex">#FF7F50</div></div>
+            <div class="top"><div class="word">Coral<span class="ipa">/ˈkɔːrəl/</span></div><div class="hex">#FF7F50</div></div>
             <div class="zh">珊瑚红；橙红之间，温暖活泼，近年流行色。</div>
           </div>
         </div>
@@ -225,7 +281,7 @@
         <div class="item">
           <div class="swatch" style="background:#000080"></div>
           <div class="meta">
-            <div class="top"><div class="word">Navy</div><div class="hex">#000080</div></div>
+            <div class="top"><div class="word">Navy<span class="ipa">/ˈneɪvi/</span></div><div class="hex">#000080</div></div>
             <div class="zh">海军蓝；深蓝、商务/制服语境极常用。</div>
           </div>
         </div>
@@ -233,7 +289,7 @@
         <div class="item">
           <div class="swatch" style="background:#0047AB"></div>
           <div class="meta">
-            <div class="top"><div class="word">Cobalt</div><div class="hex">#0047AB</div></div>
+            <div class="top"><div class="word">Cobalt<span class="ipa">/ˈkoʊbɔːlt/</span></div><div class="hex">#0047AB</div></div>
             <div class="zh">钴蓝；纯度高、偏亮但不轻飘。</div>
           </div>
         </div>
@@ -241,7 +297,7 @@
         <div class="item">
           <div class="swatch" style="background:#007FFF"></div>
           <div class="meta">
-            <div class="top"><div class="word">Azure</div><div class="hex">#007FFF</div></div>
+            <div class="top"><div class="word">Azure<span class="ipa">/ˈæʒər/</span></div><div class="hex">#007FFF</div></div>
             <div class="zh">湛蓝/天蓝；常用于天空、海面等描写。</div>
           </div>
         </div>
@@ -249,7 +305,7 @@
         <div class="item">
           <div class="swatch" style="background:#008080"></div>
           <div class="meta">
-            <div class="top"><div class="word">Teal</div><div class="hex">#008080</div></div>
+            <div class="top"><div class="word">Teal<span class="ipa">/tiːl/</span></div><div class="hex">#008080</div></div>
             <div class="zh">蓝绿（青绿）；现代设计中非常常见。</div>
           </div>
         </div>
@@ -257,15 +313,15 @@
         <div class="item">
           <div class="swatch" style="background:#2A52BE"></div>
           <div class="meta">
-            <div class="top"><div class="word">Cerulean</div><div class="hex">#2A52BE</div></div>
+            <div class="top"><div class="word">Cerulean<span class="ipa">/səˈruːliən/</span></div><div class="hex">#2A52BE</div></div>
             <div class="zh">晴空蓝；偏清透的蓝，略带艺术/文学气质。</div>
           </div>
         </div>
 
         <div class="item">
-          <div class="swatch" style="background:#6A5ACD"></div>
+          <div class="swatch" style="background:#5F7F9F"></div>
           <div class="meta">
-            <div class="top"><div class="word">Slate blue</div><div class="hex">#6A5ACD</div></div>
+            <div class="top"><div class="word">Slate blue<span class="ipa">/sleɪt bluː/</span></div><div class="hex">#5F7F9F</div></div>
             <div class="zh">石板蓝；带灰感的蓝，低调耐看。</div>
           </div>
         </div>
@@ -273,15 +329,15 @@
         <div class="item">
           <div class="swatch" style="background:#4B0082"></div>
           <div class="meta">
-            <div class="top"><div class="word">Indigo</div><div class="hex">#4B0082</div></div>
-            <div class="zh">靛蓝；蓝紫之间，彩虹七色之一，深邃神秘。</div>
+            <div class="top"><div class="word">Indigo<span class="ipa">/ˈɪndɪɡoʊ/</span></div><div class="hex">#4B0082</div></div>
+            <div class="zh">靛蓝；蓝紫之间但更偏蓝，彩虹七色之一，深邃神秘。</div>
           </div>
         </div>
 
         <div class="item">
           <div class="swatch" style="background:#40E0D0"></div>
           <div class="meta">
-            <div class="top"><div class="word">Turquoise</div><div class="hex">#40E0D0</div></div>
+            <div class="top"><div class="word">Turquoise<span class="ipa">/ˈtɜːrkwɔɪz/</span></div><div class="hex">#40E0D0</div></div>
             <div class="zh">绿松石色/青绿色；蓝绿之间，清新明亮，珠宝/设计常用。</div>
           </div>
         </div>
@@ -289,7 +345,7 @@
         <div class="item">
           <div class="swatch" style="background:#87CEEB"></div>
           <div class="meta">
-            <div class="top"><div class="word">Sky blue</div><div class="hex">#87CEEB</div></div>
+            <div class="top"><div class="word">Sky blue<span class="ipa">/skaɪ bluː/</span></div><div class="hex">#87CEEB</div></div>
             <div class="zh">天蓝色；浅淡明亮，常用于形容晴朗天空。</div>
           </div>
         </div>
@@ -297,7 +353,7 @@
         <div class="item">
           <div class="swatch" style="background:#4169E1"></div>
           <div class="meta">
-            <div class="top"><div class="word">Royal blue</div><div class="hex">#4169E1</div></div>
+            <div class="top"><div class="word">Royal blue<span class="ipa">/ˈrɔɪəl bluː/</span></div><div class="hex">#4169E1</div></div>
             <div class="zh">皇家蓝；鲜艳的深蓝，庄重、正式，常用于制服/标志。</div>
           </div>
         </div>
@@ -310,7 +366,7 @@
         <div class="item">
           <div class="swatch" style="background:#50C878"></div>
           <div class="meta">
-            <div class="top"><div class="word">Emerald</div><div class="hex">#50C878</div></div>
+            <div class="top"><div class="word">Emerald<span class="ipa">/ˈemərəld/</span></div><div class="hex">#50C878</div></div>
             <div class="zh">祖母绿；饱和、鲜亮、有宝石质感。</div>
           </div>
         </div>
@@ -318,15 +374,15 @@
         <div class="item">
           <div class="swatch" style="background:#808000"></div>
           <div class="meta">
-            <div class="top"><div class="word">Olive</div><div class="hex">#808000</div></div>
+            <div class="top"><div class="word">Olive<span class="ipa">/ˈɑːlɪv/</span></div><div class="hex">#808000</div></div>
             <div class="zh">橄榄绿；偏黄、偏暗，军装/户外常见。</div>
           </div>
         </div>
 
         <div class="item">
-          <div class="swatch" style="background:#98FF98"></div>
+          <div class="swatch" style="background:#AAF0D1"></div>
           <div class="meta">
-            <div class="top"><div class="word">Mint</div><div class="hex">#98FF98</div></div>
+            <div class="top"><div class="word">Mint<span class="ipa">/mɪnt/</span></div><div class="hex">#AAF0D1</div></div>
             <div class="zh">薄荷绿；浅淡清爽、偏冷。</div>
           </div>
         </div>
@@ -334,7 +390,7 @@
         <div class="item">
           <div class="swatch" style="background:#228B22"></div>
           <div class="meta">
-            <div class="top"><div class="word">Forest green</div><div class="hex">#228B22</div></div>
+            <div class="top"><div class="word">Forest green<span class="ipa">/ˈfɔːrɪst ɡriːn/</span></div><div class="hex">#228B22</div></div>
             <div class="zh">深林绿；更深、更自然的绿。</div>
           </div>
         </div>
@@ -342,7 +398,7 @@
         <div class="item">
           <div class="swatch" style="background:#9CAF88"></div>
           <div class="meta">
-            <div class="top"><div class="word">Sage</div><div class="hex">#9CAF88</div></div>
+            <div class="top"><div class="word">Sage<span class="ipa">/seɪdʒ/</span></div><div class="hex">#9CAF88</div></div>
             <div class="zh">鼠尾草绿；灰绿、柔和，近年流行（家居/服装）。</div>
           </div>
         </div>
@@ -350,7 +406,7 @@
         <div class="item">
           <div class="swatch" style="background:#BFFF00"></div>
           <div class="meta">
-            <div class="top"><div class="word">Lime</div><div class="hex">#BFFF00</div></div>
+            <div class="top"><div class="word">Lime<span class="ipa">/laɪm/</span></div><div class="hex">#BFFF00</div></div>
             <div class="zh">酸橙绿；亮度高、偏荧光感。</div>
           </div>
         </div>
@@ -358,7 +414,7 @@
         <div class="item">
           <div class="swatch" style="background:#00A86B"></div>
           <div class="meta">
-            <div class="top"><div class="word">Jade</div><div class="hex">#00A86B</div></div>
+            <div class="top"><div class="word">Jade<span class="ipa">/dʒeɪd/</span></div><div class="hex">#00A86B</div></div>
             <div class="zh">翡翠绿；深沉通透，有玉石质感，东方文化中常见。</div>
           </div>
         </div>
@@ -366,7 +422,7 @@
         <div class="item">
           <div class="swatch" style="background:#4CBB17"></div>
           <div class="meta">
-            <div class="top"><div class="word">Kelly green</div><div class="hex">#4CBB17</div></div>
+            <div class="top"><div class="word">Kelly green<span class="ipa">/ˈkeli ɡriːn/</span></div><div class="hex">#4CBB17</div></div>
             <div class="zh">凯利绿；鲜艳的纯绿，饱和度高，常用于运动/品牌标识。</div>
           </div>
         </div>
@@ -379,7 +435,7 @@
         <div class="item">
           <div class="swatch" style="background:#FFBF00"></div>
           <div class="meta">
-            <div class="top"><div class="word">Amber</div><div class="hex">#FFBF00</div></div>
+            <div class="top"><div class="word">Amber<span class="ipa">/ˈæmbər/</span></div><div class="hex">#FFBF00</div></div>
             <div class="zh">琥珀色；橙黄之间，温暖、有质感。</div>
           </div>
         </div>
@@ -387,7 +443,7 @@
         <div class="item">
           <div class="swatch" style="background:#FFDB58"></div>
           <div class="meta">
-            <div class="top"><div class="word">Mustard</div><div class="hex">#FFDB58</div></div>
+            <div class="top"><div class="word">Mustard<span class="ipa">/ˈmʌstərd/</span></div><div class="hex">#FFDB58</div></div>
             <div class="zh">芥末黄；偏暗、偏复古，搭配感强。</div>
           </div>
         </div>
@@ -395,7 +451,7 @@
         <div class="item">
           <div class="swatch" style="background:#CC7722"></div>
           <div class="meta">
-            <div class="top"><div class="word">Ochre</div><div class="hex">#CC7722</div></div>
+            <div class="top"><div class="word">Ochre<span class="ipa">/ˈoʊkər/</span></div><div class="hex">#CC7722</div></div>
             <div class="zh">赭黄/土黄；带泥土感，绘画与自然描述常用。</div>
           </div>
         </div>
@@ -403,15 +459,23 @@
         <div class="item">
           <div class="swatch" style="background:#D4AF37"></div>
           <div class="meta">
-            <div class="top"><div class="word">Golden</div><div class="hex">#D4AF37</div></div>
-            <div class="zh">金色；强调“金属/光泽感”，也常形容阳光。</div>
+            <div class="top"><div class="word">Golden<span class="ipa">/ˈɡoʊldən/</span></div><div class="hex">#D4AF37</div></div>
+            <div class="zh">金色（形容词用法）；偏深、偏暖，常形容阳光/温暖感。</div>
+          </div>
+        </div>
+
+        <div class="item">
+          <div class="swatch" style="background:#FFD700"></div>
+          <div class="meta">
+            <div class="top"><div class="word">Gold<span class="ipa">/ɡoʊld/</span></div><div class="hex">#FFD700</div></div>
+            <div class="zh">金色（标准色）；明亮纯正，金属质感，常用于高端/装饰描述。</div>
           </div>
         </div>
 
         <div class="item">
           <div class="swatch" style="background:#F28500"></div>
           <div class="meta">
-            <div class="top"><div class="word">Tangerine</div><div class="hex">#F28500</div></div>
+            <div class="top"><div class="word">Tangerine<span class="ipa">/ˈtændʒəriːn/</span></div><div class="hex">#F28500</div></div>
             <div class="zh">橘橙色；明亮活泼，比 orange 更具体。</div>
           </div>
         </div>
@@ -419,7 +483,7 @@
         <div class="item">
           <div class="swatch" style="background:#FFDAB9"></div>
           <div class="meta">
-            <div class="top"><div class="word">Peach</div><div class="hex">#FFDAB9</div></div>
+            <div class="top"><div class="word">Peach<span class="ipa">/piːtʃ/</span></div><div class="hex">#FFDAB9</div></div>
             <div class="zh">桃色；粉橙之间，柔和、常用于肤色/腮红。</div>
           </div>
         </div>
@@ -427,7 +491,7 @@
         <div class="item">
           <div class="swatch" style="background:#FBCEB1"></div>
           <div class="meta">
-            <div class="top"><div class="word">Apricot</div><div class="hex">#FBCEB1</div></div>
+            <div class="top"><div class="word">Apricot<span class="ipa">/ˈæprɪkɑːt/</span></div><div class="hex">#FBCEB1</div></div>
             <div class="zh">杏色；浅橙偏粉，柔和温暖，常用于形容柔和色调。</div>
           </div>
         </div>
@@ -440,7 +504,7 @@
         <div class="item">
           <div class="swatch" style="background:#8F00FF"></div>
           <div class="meta">
-            <div class="top"><div class="word">Violet</div><div class="hex">#8F00FF</div></div>
+            <div class="top"><div class="word">Violet<span class="ipa">/ˈvaɪəlɪt/</span></div><div class="hex">#8F00FF</div></div>
             <div class="zh">紫罗兰色；偏蓝的紫，比 purple 更偏冷。</div>
           </div>
         </div>
@@ -448,7 +512,7 @@
         <div class="item">
           <div class="swatch" style="background:#E6E6FA"></div>
           <div class="meta">
-            <div class="top"><div class="word">Lavender</div><div class="hex">#E6E6FA</div></div>
+            <div class="top"><div class="word">Lavender<span class="ipa">/ˈlævəndər/</span></div><div class="hex">#E6E6FA</div></div>
             <div class="zh">薰衣草紫；浅淡、柔和、带“轻香气质”。</div>
           </div>
         </div>
@@ -456,7 +520,7 @@
         <div class="item">
           <div class="swatch" style="background:#8E4585"></div>
           <div class="meta">
-            <div class="top"><div class="word">Plum</div><div class="hex">#8E4585</div></div>
+            <div class="top"><div class="word">Plum<span class="ipa">/plʌm/</span></div><div class="hex">#8E4585</div></div>
             <div class="zh">李子紫；更深、更成熟稳重。</div>
           </div>
         </div>
@@ -464,7 +528,7 @@
         <div class="item">
           <div class="swatch" style="background:#C8A2C8"></div>
           <div class="meta">
-            <div class="top"><div class="word">Lilac</div><div class="hex">#C8A2C8</div></div>
+            <div class="top"><div class="word">Lilac<span class="ipa">/ˈlaɪlək/</span></div><div class="hex">#C8A2C8</div></div>
             <div class="zh">淡紫（丁香紫）；浅紫略偏粉。</div>
           </div>
         </div>
@@ -472,7 +536,7 @@
         <div class="item">
           <div class="swatch" style="background:#9966CC"></div>
           <div class="meta">
-            <div class="top"><div class="word">Amethyst</div><div class="hex">#9966CC</div></div>
+            <div class="top"><div class="word">Amethyst<span class="ipa">/ˈæməθɪst/</span></div><div class="hex">#9966CC</div></div>
             <div class="zh">紫水晶色；宝石感的紫，常用于珠宝/高端描述。</div>
           </div>
         </div>
@@ -480,7 +544,7 @@
         <div class="item">
           <div class="swatch" style="background:#FF00FF"></div>
           <div class="meta">
-            <div class="top"><div class="word">Magenta</div><div class="hex">#FF00FF</div></div>
+            <div class="top"><div class="word">Magenta<span class="ipa">/məˈdʒentə/</span></div><div class="hex">#FF00FF</div></div>
             <div class="zh">品红/洋红；红紫之间，鲜艳醒目，印刷/设计常用。</div>
           </div>
         </div>
@@ -488,7 +552,7 @@
         <div class="item">
           <div class="swatch" style="background:#E0B0FF"></div>
           <div class="meta">
-            <div class="top"><div class="word">Mauve</div><div class="hex">#E0B0FF</div></div>
+            <div class="top"><div class="word">Mauve<span class="ipa">/moʊv/</span></div><div class="hex">#E0B0FF</div></div>
             <div class="zh">淡紫色；浅紫偏灰，柔和优雅，19世纪曾流行。</div>
           </div>
         </div>
@@ -501,7 +565,7 @@
         <div class="item">
           <div class="swatch" style="background:#D2B48C"></div>
           <div class="meta">
-            <div class="top"><div class="word">Tan</div><div class="hex">#D2B48C</div></div>
+            <div class="top"><div class="word">Tan<span class="ipa">/tæn/</span></div><div class="hex">#D2B48C</div></div>
             <div class="zh">浅棕/晒色；常形容皮革、肤色、木色。</div>
           </div>
         </div>
@@ -509,7 +573,7 @@
         <div class="item">
           <div class="swatch" style="background:#F5F5DC"></div>
           <div class="meta">
-            <div class="top"><div class="word">Beige</div><div class="hex">#F5F5DC</div></div>
+            <div class="top"><div class="word">Beige<span class="ipa">/beɪʒ/</span></div><div class="hex">#F5F5DC</div></div>
             <div class="zh">米色；非常常用的中性浅色，温和不抢眼。</div>
           </div>
         </div>
@@ -517,7 +581,7 @@
         <div class="item">
           <div class="swatch" style="background:#8B8589"></div>
           <div class="meta">
-            <div class="top"><div class="word">Taupe</div><div class="hex">#8B8589</div></div>
+            <div class="top"><div class="word">Taupe<span class="ipa">/toʊp/</span></div><div class="hex">#8B8589</div></div>
             <div class="zh">灰棕色；高级耐看，常见于穿搭与室内设计。</div>
           </div>
         </div>
@@ -525,7 +589,7 @@
         <div class="item">
           <div class="swatch" style="background:#954535"></div>
           <div class="meta">
-            <div class="top"><div class="word">Chestnut</div><div class="hex">#954535</div></div>
+            <div class="top"><div class="word">Chestnut<span class="ipa">/ˈtʃesnʌt/</span></div><div class="hex">#954535</div></div>
             <div class="zh">栗色；偏红棕，常用来形容头发/木材色泽。</div>
           </div>
         </div>
@@ -533,7 +597,7 @@
         <div class="item">
           <div class="swatch" style="background:#6F4E37"></div>
           <div class="meta">
-            <div class="top"><div class="word">Mocha</div><div class="hex">#6F4E37</div></div>
+            <div class="top"><div class="word">Mocha<span class="ipa">/ˈmoʊkə/</span></div><div class="hex">#6F4E37</div></div>
             <div class="zh">摩卡色；咖啡棕，温暖、偏深。</div>
           </div>
         </div>
@@ -541,7 +605,7 @@
         <div class="item">
           <div class="swatch" style="background:#C68E17"></div>
           <div class="meta">
-            <div class="top"><div class="word">Caramel</div><div class="hex">#C68E17</div></div>
+            <div class="top"><div class="word">Caramel<span class="ipa">/ˈkærəməl/</span></div><div class="hex">#C68E17</div></div>
             <div class="zh">焦糖色；带金黄感的暖棕，甜感明显。</div>
           </div>
         </div>
@@ -549,7 +613,7 @@
         <div class="item">
           <div class="swatch" style="background:#A0522D"></div>
           <div class="meta">
-            <div class="top"><div class="word">Sienna</div><div class="hex">#A0522D</div></div>
+            <div class="top"><div class="word">Sienna<span class="ipa">/siˈenə/</span></div><div class="hex">#A0522D</div></div>
             <div class="zh">赭石色；红棕偏土，绘画颜料常用，自然沉稳。</div>
           </div>
         </div>
@@ -557,7 +621,7 @@
         <div class="item">
           <div class="swatch" style="background:#CD853F"></div>
           <div class="meta">
-            <div class="top"><div class="word">Peru</div><div class="hex">#CD853F</div></div>
+            <div class="top"><div class="word">Peru<span class="ipa">/pəˈruː/</span></div><div class="hex">#CD853F</div></div>
             <div class="zh">秘鲁色；中等深度的棕，温暖柔和，常用于描述肤色/材质。</div>
           </div>
         </div>
@@ -570,7 +634,7 @@
         <div class="item">
           <div class="swatch" style="background:#36454F"></div>
           <div class="meta">
-            <div class="top"><div class="word">Charcoal</div><div class="hex">#36454F</div></div>
+            <div class="top"><div class="word">Charcoal<span class="ipa">/ˈtʃɑːrkoʊl/</span></div><div class="hex">#36454F</div></div>
             <div class="zh">炭灰；接近黑的深灰，沉稳有力量。</div>
           </div>
         </div>
@@ -578,7 +642,7 @@
         <div class="item">
           <div class="swatch" style="background:#B2BEB5"></div>
           <div class="meta">
-            <div class="top"><div class="word">Ash</div><div class="hex">#B2BEB5</div></div>
+            <div class="top"><div class="word">Ash<span class="ipa">/æʃ/</span></div><div class="hex">#B2BEB5</div></div>
             <div class="zh">灰白/灰烬色；更轻、更“粉灰”的感觉。</div>
           </div>
         </div>
@@ -586,7 +650,7 @@
         <div class="item">
           <div class="swatch" style="background:#708090"></div>
           <div class="meta">
-            <div class="top"><div class="word">Slate</div><div class="hex">#708090</div></div>
+            <div class="top"><div class="word">Slate<span class="ipa">/sleɪt/</span></div><div class="hex">#708090</div></div>
             <div class="zh">石板灰；带蓝调的灰，干净、理性。</div>
           </div>
         </div>
@@ -594,7 +658,7 @@
         <div class="item">
           <div class="swatch" style="background:#FFFFF0"></div>
           <div class="meta">
-            <div class="top"><div class="word">Ivory</div><div class="hex">#FFFFF0</div></div>
+            <div class="top"><div class="word">Ivory<span class="ipa">/ˈaɪvəri/</span></div><div class="hex">#FFFFF0</div></div>
             <div class="zh">象牙白；比纯白更柔和、偏暖。</div>
           </div>
         </div>
@@ -602,7 +666,7 @@
         <div class="item">
           <div class="swatch" style="background:#F8F8FF"></div>
           <div class="meta">
-            <div class="top"><div class="word">Off-white</div><div class="hex">#F8F8FF</div></div>
+            <div class="top"><div class="word">Off-white<span class="ipa">/ɔːf waɪt/</span></div><div class="hex">#F8F8FF</div></div>
             <div class="zh">非纯白/米白系；泛指略带色相的白。</div>
           </div>
         </div>
@@ -610,7 +674,7 @@
         <div class="item">
           <div class="swatch" style="background:#FDEEF4"></div>
           <div class="meta">
-            <div class="top"><div class="word">Pearl</div><div class="hex">#FDEEF4</div></div>
+            <div class="top"><div class="word">Pearl<span class="ipa">/pɜːrl/</span></div><div class="hex">#FDEEF4</div></div>
             <div class="zh">珍珠白；带一点粉润光泽感（偏"珠光"）。</div>
           </div>
         </div>
@@ -618,21 +682,23 @@
         <div class="item">
           <div class="swatch" style="background:#C0C0C0"></div>
           <div class="meta">
-            <div class="top"><div class="word">Silver</div><div class="hex">#C0C0C0</div></div>
+            <div class="top"><div class="word">Silver<span class="ipa">/ˈsɪlvər/</span></div><div class="hex">#C0C0C0</div></div>
             <div class="zh">银色；金属感的灰，现代、科技感，常用于高端产品描述。</div>
-          </div>
-        </div>
-
-        <div class="item">
-          <div class="swatch" style="background:#FFD700"></div>
-          <div class="meta">
-            <div class="top"><div class="word">Gold</div><div class="hex">#FFD700</div></div>
-            <div class="zh">金色；金属光泽的黄，奢华、尊贵，常用于高端/装饰描述。</div>
           </div>
         </div>
       </div>
     </section>
 
   </div>
+  <script>
+    function toggleTheme(){
+      document.documentElement.classList.toggle('light');
+      const isLight = document.documentElement.classList.contains('light');
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+    if(localStorage.getItem('theme') === 'light'){
+      document.documentElement.classList.add('light');
+    }
+  </script>
 </body>
 </html>
