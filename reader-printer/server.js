@@ -122,12 +122,74 @@ app.get('/api/read', async (req, res) => {
         // 2.6 预处理：处理懒加载图片，确保图片能被正确保留
         // 很多网站（如 BBC）使用懒加载，真实 URL 在 data-src 或 srcset 中
         
+        // 2.6.1 特殊处理：Substack 图片
+        // Substack 的图片 URL 有时会包含损坏的参数（如 $s_!U377!），导致图片无法加载
+        // 但在 data-attrs 属性中包含了原始的 S3 图片 URL
+        const substackImages = doc.querySelectorAll('img[data-attrs]');
+        substackImages.forEach(img => {
+            try {
+                const dataAttrs = img.getAttribute('data-attrs');
+                if (dataAttrs) {
+                    const attrs = JSON.parse(dataAttrs);
+                    // 提取原始 S3 URL
+                    const originalSrc = attrs.src || attrs.srcNoWatermark;
+                    if (originalSrc && originalSrc.includes('substack-post-media.s3.amazonaws.com')) {
+                        // 直接使用 S3 源 URL，无需经过 substackcdn 的图片处理
+                        img.setAttribute('src', originalSrc);
+                        img.removeAttribute('srcset');
+                        console.log(`[Substack] 修复图片: ${originalSrc.substring(0, 80)}...`);
+                    }
+                }
+            } catch (e) {
+                // JSON 解析失败，忽略
+            }
+        });
+        
+        // 2.6.2 处理 Substack 的 <picture> 元素中损坏的 URL
+        // 检测包含 $s_ 等损坏参数的 URL
+        const allImagesForFix = doc.querySelectorAll('img');
+        allImagesForFix.forEach(img => {
+            const src = img.getAttribute('src') || '';
+            // 检测损坏的 substackcdn URL (包含 $s_ 或其他非法参数)
+            if (src.includes('substackcdn.com') && (src.includes('$s_') || src.includes('%24s_'))) {
+                // 尝试从 URL 中提取原始 S3 路径
+                const s3Match = src.match(/https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com[^,\s]+/);
+                if (s3Match) {
+                    const decodedUrl = decodeURIComponent(s3Match[0]);
+                    img.setAttribute('src', decodedUrl);
+                    img.removeAttribute('srcset');
+                    console.log(`[Substack] 从 URL 提取源图片: ${decodedUrl.substring(0, 80)}...`);
+                }
+            }
+        });
+        
         // 处理 <picture> 元素，提取最佳图片源
         const pictures = doc.querySelectorAll('picture');
         pictures.forEach(picture => {
             // 尝试从 source 获取最大的图片
             const sources = picture.querySelectorAll('source');
             let bestSrc = '';
+            
+            // 首先检查 picture 内的 img 是否有 data-attrs
+            const img = picture.querySelector('img');
+            if (img) {
+                const dataAttrs = img.getAttribute('data-attrs');
+                if (dataAttrs) {
+                    try {
+                        const attrs = JSON.parse(dataAttrs);
+                        const originalSrc = attrs.src || attrs.srcNoWatermark;
+                        if (originalSrc && originalSrc.startsWith('http')) {
+                            img.setAttribute('src', originalSrc);
+                            img.removeAttribute('srcset');
+                            // 清理 source 元素，避免浏览器使用损坏的 srcset
+                            sources.forEach(s => s.remove());
+                            return; // 已处理，跳过后续逻辑
+                        }
+                    } catch (e) {
+                        // 忽略解析错误
+                    }
+                }
+            }
             
             sources.forEach(source => {
                 const srcset = source.getAttribute('srcset');
@@ -136,7 +198,8 @@ app.get('/api/read', async (req, res) => {
                     const srcsetParts = srcset.split(',').map(s => s.trim());
                     srcsetParts.forEach(part => {
                         const [url] = part.split(/\s+/);
-                        if (url && url.startsWith('http')) {
+                        // 跳过包含损坏参数的 URL
+                        if (url && url.startsWith('http') && !url.includes('$s_') && !url.includes('%24s_')) {
                             bestSrc = url;
                         }
                     });
@@ -144,7 +207,6 @@ app.get('/api/read', async (req, res) => {
             });
             
             // 获取 picture 中的 img 标签
-            const img = picture.querySelector('img');
             if (img && bestSrc) {
                 img.setAttribute('src', bestSrc);
                 img.removeAttribute('srcset');
@@ -256,42 +318,238 @@ app.get('/api/read', async (req, res) => {
         });
 
 
-        // 3.5 在 Readability 处理前，保存文章中的有效图片
-        // BBC 等网站的图片通常在 figure 元素中，Readability 可能会移除它们
-        const savedImages = [];
-        const figures = doc.querySelectorAll('figure');
-        figures.forEach(figure => {
-            const img = figure.querySelector('img');
-            const figcaption = figure.querySelector('figcaption');
-            if (img) {
-                const src = img.getAttribute('src') || '';
-                // 只保存有效的图片（排除占位图）
-                if (src && src.startsWith('http') && !src.includes('grey-placehold') && !src.includes('placeholder')) {
-                    savedImages.push({
-                        src: src,
-                        alt: img.getAttribute('alt') || '',
-                        caption: figcaption ? figcaption.textContent.trim() : ''
-                    });
+        // 3.5 在 Readability 处理前，保护文章中的子标题（段落标题）
+        // Readability 可能会移除被 div 包裹的 h1/h2/h3 等标题
+        const articleContainer = doc.querySelector('article, main, [role="main"], .post-content, .body-markup') || doc.body;
+        
+        // 找到文章中所有的子标题（h1-h4），将它们"提升"到更容易被 Readability 保留的位置
+        const subHeadings = articleContainer.querySelectorAll('h1, h2, h3, h4');
+        let protectedHeadingCount = 0;
+        
+        subHeadings.forEach((heading, index) => {
+            // 跳过空标题
+            const text = heading.textContent.trim();
+            if (!text || text.length === 0) return;
+            
+            // 检查标题是否被多层 div 包裹（这种情况 Readability 可能会移除）
+            const parent = heading.parentElement;
+            if (!parent) return;
+            
+            const parentTag = parent.tagName.toLowerCase();
+            
+            // 如果标题的父元素是 div 且不是 article/main/section
+            // 则创建一个"保护性"的结构
+            if (['div', 'span'].includes(parentTag)) {
+                // 找到标题后面最近的段落
+                let nextP = heading.nextElementSibling;
+                while (nextP && !['p', 'ul', 'ol', 'blockquote'].includes(nextP.tagName.toLowerCase())) {
+                    // 跳过其他 div 容器，找里面的内容
+                    if (nextP.tagName.toLowerCase() === 'div') {
+                        const innerP = nextP.querySelector('p, ul, ol, blockquote');
+                        if (innerP) {
+                            nextP = innerP;
+                            break;
+                        }
+                    }
+                    nextP = nextP.nextElementSibling;
+                }
+                
+                // 创建一个新的标题元素，直接放在段落前面
+                // 使用 h2 作为子标题的默认级别（除非原来就是 h3/h4）
+                const newTag = heading.tagName.toLowerCase() === 'h1' ? 'h2' : heading.tagName.toLowerCase();
+                const newHeading = doc.createElement(newTag);
+                newHeading.textContent = text;
+                newHeading.setAttribute('data-protected-heading', 'true');
+                
+                if (nextP && nextP.parentNode) {
+                    // 在段落前面插入新标题
+                    nextP.parentNode.insertBefore(newHeading, nextP);
+                    protectedHeadingCount++;
+                } else {
+                    // 找不到后面的段落，尝试找更广泛的范围
+                    // 在 articleContainer 中找到合适的位置
+                    const allParagraphs = articleContainer.querySelectorAll('p');
+                    let targetP = null;
+                    
+                    // 找到第一个在当前标题之后的段落
+                    // DOCUMENT_POSITION_FOLLOWING = 4
+                    for (const p of allParagraphs) {
+                        // 使用 compareDocumentPosition 判断位置关系
+                        if (heading.compareDocumentPosition(p) & 4) {
+                            targetP = p;
+                            break;
+                        }
+                    }
+                    
+                    if (targetP && targetP.parentNode) {
+                        targetP.parentNode.insertBefore(newHeading, targetP);
+                        protectedHeadingCount++;
+                    }
                 }
             }
         });
         
-        // 也检查直接的 img 标签（不在 figure 中的）
-        doc.querySelectorAll('article img, main img, [role="main"] img').forEach(img => {
+        console.log(`[标题保护] 处理了 ${subHeadings.length} 个子标题，保护了 ${protectedHeadingCount} 个`);
+
+        // 3.6 在 Readability 处理前，将图片"锚定"到相邻段落中
+        // 这样 Readability 提取正文时会保留图片，且位置精确
+        
+        // 辅助函数：判断图片是否为有效的内容图片（非占位图、非小图标）
+        function isValidContentImage(img) {
             const src = img.getAttribute('src') || '';
-            if (src && src.startsWith('http') && !src.includes('grey-placehold') && !src.includes('placeholder')) {
-                // 检查是否已保存
-                if (!savedImages.some(saved => saved.src === src)) {
-                    savedImages.push({
-                        src: src,
-                        alt: img.getAttribute('alt') || '',
-                        caption: ''
-                    });
+            if (!src || !src.startsWith('http')) return false;
+            
+            // 排除占位图
+            if (src.includes('grey-placehold') || src.includes('placeholder') || src.includes('data:')) return false;
+            
+            // 排除明显的小图标（通过 URL 判断）
+            if (src.includes('/icon') || src.includes('favicon') || src.includes('avatar') || src.includes('logo')) return false;
+            
+            // 排除非常小的图片（通过属性判断）
+            const width = parseInt(img.getAttribute('width') || '0');
+            const height = parseInt(img.getAttribute('height') || '0');
+            if (width > 0 && width < 100 && height > 0 && height < 100) return false;
+            
+            return true;
+        }
+        
+        // 辅助函数：找到元素前面最近的段落/标题/列表项
+        function findPreviousTextBlock(element) {
+            let current = element;
+            
+            // 先找到图片的容器（figure, picture, div 等）
+            const container = element.closest('figure, .image2-inset, picture, .captioned-image-container') || element;
+            current = container;
+            
+            // 向前遍历兄弟节点
+            while (current) {
+                let prev = current.previousElementSibling;
+                while (prev) {
+                    // 如果是文本块元素（p, h1-h6, li）
+                    const tagName = prev.tagName.toLowerCase();
+                    if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'].includes(tagName)) {
+                        // 确保有实际文本内容
+                        if (prev.textContent && prev.textContent.trim().length > 0) {
+                            return prev;
+                        }
+                    }
+                    // 如果是 div 或其他容器，检查里面是否有文本块
+                    if (['div', 'section', 'article'].includes(tagName)) {
+                        const innerBlock = prev.querySelector('p, h1, h2, h3, h4, h5, h6, li');
+                        if (innerBlock && innerBlock.textContent && innerBlock.textContent.trim().length > 0) {
+                            // 返回容器内最后一个文本块
+                            const allBlocks = prev.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                            if (allBlocks.length > 0) {
+                                return allBlocks[allBlocks.length - 1];
+                            }
+                        }
+                    }
+                    prev = prev.previousElementSibling;
+                }
+                
+                // 向上一层继续找
+                current = current.parentElement;
+                if (!current || current.tagName === 'BODY' || current.tagName === 'HTML') break;
+            }
+            
+            return null;
+        }
+        
+        // 辅助函数：找到元素后面最近的段落/标题/列表项
+        function findNextTextBlock(element) {
+            let current = element;
+            const container = element.closest('figure, .image2-inset, picture, .captioned-image-container') || element;
+            current = container;
+            
+            while (current) {
+                let next = current.nextElementSibling;
+                while (next) {
+                    const tagName = next.tagName.toLowerCase();
+                    if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'].includes(tagName)) {
+                        if (next.textContent && next.textContent.trim().length > 0) {
+                            return next;
+                        }
+                    }
+                    if (['div', 'section', 'article'].includes(tagName)) {
+                        const innerBlock = next.querySelector('p, h1, h2, h3, h4, h5, h6, li');
+                        if (innerBlock && innerBlock.textContent && innerBlock.textContent.trim().length > 0) {
+                            return innerBlock;
+                        }
+                    }
+                    next = next.nextElementSibling;
+                }
+                current = current.parentElement;
+                if (!current || current.tagName === 'BODY' || current.tagName === 'HTML') break;
+            }
+            
+            return null;
+        }
+        
+        // 收集所有需要锚定的图片
+        const processedSrcs = new Set();
+        let anchoredCount = 0;
+        
+        // 按 DOM 顺序获取所有图片
+        const allImagesInArticle = articleContainer.querySelectorAll('img');
+        
+        allImagesInArticle.forEach((img, index) => {
+            if (!isValidContentImage(img)) return;
+            
+            const src = img.getAttribute('src');
+            if (processedSrcs.has(src)) return;
+            processedSrcs.add(src);
+            
+            // 检查图片是否已经在段落内
+            const parentP = img.closest('p, h1, h2, h3, h4, h5, h6, li');
+            if (parentP) {
+                // 已经在段落内，不需要处理
+                return;
+            }
+            
+            // 获取图片容器（保留 figure 结构和 caption）
+            const container = img.closest('figure, .image2-inset, picture') || img;
+            
+            // 创建一个标记元素，用于在原位置插入图片
+            // 使用特殊的 data 属性来标记这是一个锚定图片
+            const marker = doc.createElement('span');
+            marker.setAttribute('data-img-anchor', 'true');
+            marker.setAttribute('data-img-src', src);
+            marker.style.display = 'block';
+            marker.style.margin = '20px 0';
+            
+            // 克隆图片（或整个 figure）
+            let imgElement;
+            if (container.tagName === 'FIGURE') {
+                imgElement = container.cloneNode(true);
+            } else {
+                imgElement = doc.createElement('figure');
+                imgElement.style.margin = '20px 0';
+                const clonedImg = img.cloneNode(true);
+                clonedImg.style.maxWidth = '100%';
+                clonedImg.style.height = 'auto';
+                imgElement.appendChild(clonedImg);
+            }
+            
+            marker.appendChild(imgElement);
+            
+            // 找到前面最近的段落
+            const prevBlock = findPreviousTextBlock(img);
+            
+            if (prevBlock) {
+                // 在前一个段落后面插入图片标记
+                prevBlock.parentNode.insertBefore(marker, prevBlock.nextSibling);
+                anchoredCount++;
+            } else {
+                // 找不到前面的段落，尝试找后面的
+                const nextBlock = findNextTextBlock(img);
+                if (nextBlock) {
+                    nextBlock.parentNode.insertBefore(marker, nextBlock);
+                    anchoredCount++;
                 }
             }
         });
         
-        console.log(`[图片备份] 保存了 ${savedImages.length} 个有效图片`);
+        console.log(`[图片锚定] 处理了 ${processedSrcs.size} 个图片，成功锚定 ${anchoredCount} 个`);
 
         // 4. 使用 Readability 提取正文
         const reader = new Readability(doc);
@@ -308,33 +566,45 @@ app.get('/api/read', async (req, res) => {
         let imgCount = (articleContent.match(/<img/g) || []).length;
         console.log(`[Readability] 标题: ${article.title} | 内容长度: ${articleContent.length} | <em>: ${emCount} | <strong>: ${strongCount} | <img>: ${imgCount}`);
         
-        // 4.5 如果 Readability 移除了图片，将备份的图片插入到内容开头
-        if (imgCount === 0 && savedImages.length > 0) {
-            console.log(`[图片恢复] Readability 移除了图片，正在恢复 ${savedImages.length} 个图片...`);
-            
-            // 生成图片 HTML
-            let imagesHtml = '';
-            savedImages.forEach(imgInfo => {
-                imagesHtml += `<figure style="margin: 20px 0;">`;
-                imagesHtml += `<img src="${imgInfo.src}" alt="${imgInfo.alt}" style="max-width: 100%; height: auto;">`;
-                if (imgInfo.caption) {
-                    imagesHtml += `<figcaption style="font-size: 0.9em; color: #666; margin-top: 8px;">${imgInfo.caption}</figcaption>`;
-                }
-                imagesHtml += `</figure>`;
-            });
-            
-            // 将图片插入到内容中（在第一个段落后）
-            const firstParagraphEnd = articleContent.indexOf('</p>');
-            if (firstParagraphEnd !== -1) {
-                articleContent = articleContent.slice(0, firstParagraphEnd + 4) + imagesHtml + articleContent.slice(firstParagraphEnd + 4);
-            } else {
-                // 如果没有段落，直接添加到开头
-                articleContent = imagesHtml + articleContent;
-            }
-            
-            imgCount = savedImages.length;
-            console.log(`[图片恢复] 成功恢复 ${imgCount} 个图片`);
+        // 4.5 清理锚定标记的样式，检查是否还有缺失的图片
+        // 提取 Readability 输出中的图片
+        const finalImgCount = (articleContent.match(/<img/g) || []).length;
+        console.log(`[图片结果] Readability 输出包含 ${finalImgCount} 个图片`);
+        
+        // 清理可能残留的 data-img-anchor span 标签（保留内容）
+        articleContent = articleContent.replace(/<span[^>]*data-img-anchor[^>]*>/gi, '');
+        articleContent = articleContent.replace(/<\/span>/gi, function(match, offset) {
+            // 只移除与 data-img-anchor 相关的闭合标签
+            // 这里简单处理，移除所有 </span>
+            return '';
+        });
+        
+        // 检查是否还有未被保留的图片（通过对比 processedSrcs）
+        const existingImgUrls = new Set();
+        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(articleContent)) !== null) {
+            existingImgUrls.add(imgMatch[1]);
         }
+        
+        // 找出缺失的图片
+        const missingImages = [];
+        processedSrcs.forEach(src => {
+            if (!existingImgUrls.has(src)) {
+                missingImages.push(src);
+            }
+        });
+        
+        if (missingImages.length > 0) {
+            console.log(`[图片补充] 还有 ${missingImages.length} 个图片未被保留，添加到末尾`);
+            let appendHtml = '';
+            missingImages.forEach(src => {
+                appendHtml += `<figure style="margin: 20px 0;"><img src="${src}" style="max-width: 100%; height: auto;"></figure>`;
+            });
+            articleContent += appendHtml;
+        }
+        
+        imgCount = (articleContent.match(/<img/g) || []).length;
 
         // 5. 返回结构化数据
         res.json({
