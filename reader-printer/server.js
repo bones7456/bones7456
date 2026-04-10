@@ -4,6 +4,60 @@ const { JSDOM } = require('jsdom');
 const { Readability } = require('@mozilla/readability');
 const cors = require('cors');
 
+// 在 Electron 环境中获取 BrowserWindow（用于反爬虫回退）
+let ElectronBrowserWindow = null;
+try {
+    const electron = require('electron');
+    ElectronBrowserWindow = electron.BrowserWindow;
+} catch (e) {
+    // 非 Electron 环境（如直接 node server.js 调试时）
+}
+
+// 用隐藏 BrowserWindow 抓取页面（真实 Chromium，能绕过大多数反爬检测）
+function fetchWithHeadlessBrowser(url) {
+    return new Promise((resolve, reject) => {
+        const win = new ElectronBrowserWindow({
+            show: false,
+            webPreferences: {
+                javascript: true,
+                nodeIntegration: false,
+                contextIsolation: true,
+            }
+        });
+
+        let settled = false;
+        function settle(fn, val) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            win.destroy();
+            fn(val);
+        }
+
+        const timer = setTimeout(() => {
+            settle(reject, new Error('Page load timeout (30s)'));
+        }, 30000);
+
+        win.webContents.on('dom-ready', async () => {
+            try {
+                const html = await win.webContents.executeJavaScript('document.documentElement.outerHTML');
+                const finalUrl = win.webContents.getURL();
+                settle(resolve, { html, finalUrl });
+            } catch (e) {
+                settle(reject, e);
+            }
+        });
+
+        win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+            if (isMainFrame) {
+                settle(reject, new Error(`Browser load failed: ${errorDescription} (${errorCode})`));
+            }
+        });
+
+        win.loadURL(url);
+    });
+}
+
 const app = express();
 app.use(cors()); // 允许前端跨域调用
 app.use(express.json());
@@ -16,15 +70,30 @@ app.get('/api/read', async (req, res) => {
     }
 
     try {
-        // 1. 抓取网页内容
-        const response = await axios.get(targetUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+        // 1. 抓取网页内容（先尝试 axios，失败时回退到真实浏览器）
+        let htmlContent;
+        let resolvedUrl = targetUrl;
+
+        try {
+            const response = await axios.get(targetUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+                }
+            });
+            htmlContent = response.data;
+        } catch (axiosErr) {
+            if (ElectronBrowserWindow) {
+                console.log(`[Fetch] axios 失败 (${axiosErr.message})，切换到浏览器模式...`);
+                const result = await fetchWithHeadlessBrowser(targetUrl);
+                htmlContent = result.html;
+                resolvedUrl = result.finalUrl;
+            } else {
+                throw axiosErr;
             }
-        });
+        }
 
         // 2. 创建虚拟 DOM
-        const dom = new JSDOM(response.data, { url: targetUrl });
+        const dom = new JSDOM(htmlContent, { url: resolvedUrl });
         const doc = dom.window.document;
 
         // 2.5 预处理：解析 CSS 样式，保留通过 CSS 类设置的斜体/粗体
