@@ -672,7 +672,48 @@ app.get('/api/read', async (req, res) => {
             });
             articleContent += appendHtml;
         }
-        
+
+        // 4.7 去重：图片锚定会克隆 figure、标题保护会克隆 heading，原位置和新位置可能同时被 Readability 保留
+        {
+            const tempDom = new JSDOM(`<div id="root">${articleContent}</div>`);
+            const root = tempDom.window.document.getElementById('root');
+            let removedImgs = 0;
+            let removedHeadings = 0;
+
+            const seenSrcs = new Set();
+            root.querySelectorAll('img').forEach(img => {
+                const src = img.getAttribute('src');
+                if (!src) return;
+                if (seenSrcs.has(src)) {
+                    const target = img.closest('figure, picture') || img;
+                    if (target.parentNode) {
+                        target.parentNode.removeChild(target);
+                        removedImgs++;
+                    }
+                } else {
+                    seenSrcs.add(src);
+                }
+            });
+
+            const seenHeadings = new Set();
+            root.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+                const text = (h.textContent || '').trim();
+                if (!text) return;
+                const key = `${h.tagName}:${text}`;
+                if (seenHeadings.has(key)) {
+                    h.parentNode && h.parentNode.removeChild(h);
+                    removedHeadings++;
+                } else {
+                    seenHeadings.add(key);
+                }
+            });
+
+            if (removedImgs > 0 || removedHeadings > 0) {
+                console.log(`[去重] 移除重复图片 ${removedImgs} 个，重复标题 ${removedHeadings} 个`);
+                articleContent = root.innerHTML;
+            }
+        }
+
         imgCount = (articleContent.match(/<img/g) || []).length;
 
         // 5. 返回结构化数据

@@ -180,6 +180,7 @@
             display: flex;
             gap: 10px;
             justify-content: center;
+            flex-wrap: wrap;
         }
         
         .batch-clean-dialog button {
@@ -419,11 +420,12 @@
     
     <!-- 批量清理确认对话框 -->
     <div class="batch-clean-dialog" id="batchCleanDialog">
-        <h3>🔍 发现相似元素</h3>
-        <p id="batchCleanMsg">发现 X 个类似元素，是否批量清理？</p>
+        <h3 id="batchCleanTitle">🧹 选择清理方式</h3>
+        <p id="batchCleanMsg"></p>
         <div class="btn-group">
-            <button class="btn-batch" onclick="confirmBatchClean(true)">批量清理全部</button>
             <button class="btn-single" onclick="confirmBatchClean(false)">仅清理当前</button>
+            <button class="btn-batch" id="btnBatchClean" onclick="confirmBatchClean(true)">批量清理全部</button>
+            <button class="btn-batch" onclick="confirmCleanFromHere()">清理此后的所有元素</button>
             <button class="btn-cancel" onclick="cancelBatchClean()">取消</button>
         </div>
     </div>
@@ -543,12 +545,21 @@
         }
         
         // 显示批量清理对话框
-        function showBatchCleanDialog(count) {
+        function showBatchCleanDialog(target, similarCount) {
             const dialog = document.getElementById('batchCleanDialog');
             const overlay = document.getElementById('dialogOverlay');
             const msg = document.getElementById('batchCleanMsg');
-            
-            msg.textContent = `发现 ${count} 个类似元素，是否批量清理？`;
+            const btnBatch = document.getElementById('btnBatchClean');
+
+            const tagInfo = target.tagName.toLowerCase() + (target.className ? '.' + target.className.split(/\s+/).filter(c => !['similar-element-highlight','element-removing'].includes(c)).join('.') : '');
+            if (similarCount > 0) {
+                msg.textContent = `已选中 <${tagInfo}>，发现 ${similarCount} 个相似元素。`;
+                btnBatch.style.display = '';
+            } else {
+                msg.textContent = `已选中 <${tagInfo}>。`;
+                btnBatch.style.display = 'none';
+            }
+
             dialog.classList.add('show');
             overlay.classList.add('show');
         }
@@ -593,6 +604,38 @@
             similarElements = [];
         }
         
+        // 清理被选元素之后（在文档顺序上）的所有元素，被选元素及之前的内容保留
+        function confirmCleanFromHere() {
+            if (!pendingTarget) {
+                cancelBatchClean();
+                return;
+            }
+
+            const contentDiv = document.getElementById('reader-content');
+
+            // 沿祖先链向上走，每一层把当前节点之后的所有兄弟节点收集起来
+            // 直到祖先就是 #reader-content（不动 #reader-content 之外的东西）
+            const toRemove = [];
+            let current = pendingTarget;
+            while (current && current !== contentDiv) {
+                let sibling = current.nextElementSibling;
+                while (sibling) {
+                    toRemove.push(sibling);
+                    sibling = sibling.nextElementSibling;
+                }
+                current = current.parentElement;
+            }
+
+            toRemove.forEach((el, idx) => {
+                setTimeout(() => removeElement(el), idx * 30);
+            });
+
+            clearSimilarHighlights();
+            hideBatchCleanDialog();
+            pendingTarget = null;
+            similarElements = [];
+        }
+
         // 取消批量清理
         function cancelBatchClean() {
             clearSimilarHighlights();
@@ -604,34 +647,25 @@
         // 处理元素点击（清理模式下）
         function handleElementClick(e) {
             if (!isCleanMode) return;
-            
+
             e.preventDefault();
             e.stopPropagation();
-            
+
             const target = e.target;
             const contentDiv = document.getElementById('reader-content');
-            
+
             // 不允许删除根容器
             if (target === contentDiv) return;
-            
-            // 查找相似元素
-            const similar = findSimilarElements(target);
-            
-            if (similar.length > 0) {
-                // 找到相似元素，显示对话框
-                pendingTarget = target;
-                similarElements = similar;
-                
-                // 高亮显示相似元素
-                highlightSimilarElements(similar);
+
+            pendingTarget = target;
+            similarElements = findSimilarElements(target);
+
+            if (similarElements.length > 0) {
+                highlightSimilarElements(similarElements);
                 target.classList.add('similar-element-highlight');
-                
-                // 显示确认对话框
-                showBatchCleanDialog(similar.length + 1); // +1 包含当前选中的元素
-            } else {
-                // 没有相似元素，直接删除
-                removeElement(target);
             }
+
+            showBatchCleanDialog(target, similarElements.length);
         }
         
         // ESC 键退出清理模式或取消对话框
