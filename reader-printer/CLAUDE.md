@@ -15,6 +15,7 @@ Electron 桌面应用，分为三个文件：
 1. axios 抓取目标页面 HTML
 2. JSDOM 构建虚拟 DOM
 3. **预处理**（在 Readability 之前）：
+   - 移除正文周边的附属区块（术语表、相关阅读、推荐轮播、分享、订阅、评论、侧栏）：先用 `meta description` 或最长段落定位「正文锚点」，含锚点的元素一律不删
    - 解析 `<style>` 中的 CSS 类，将 `font-style:italic` / `font-weight:bold` 的元素包成 `<em>` / `<strong>`
    - 处理内联 `style` 属性的同类情形
    - `<blockquote>` 自动包 `<em>`
@@ -24,7 +25,9 @@ Electron 桌面应用，分为三个文件：
    - 子标题保护：将被 `div` 包裹的 `h1-h4` 复制插入到相邻段落前，防止 Readability 丢弃
    - 图片锚定到相邻段落，保持位置
 4. `@mozilla/readability` 提取正文
-5. 对比提取前后图片数量，追加遗漏的图片
+5. 兜底：拿一份未经预处理的副本再提一次，预处理版明显更短就改用原始结果
+6. 对比提取前后图片数量，追加遗漏的图片（文章头图放正文开头，其余放末尾）
+7. 输出清理：去重，并去掉占位图、图片来源署名、作者/时间戳块和空壳元素
 
 ## 前端功能（index.html）
 
@@ -60,4 +63,12 @@ npm run build      # electron-builder 打包（Mac，x64 + arm64 DMG）
 
 - 前端 JS 全部内联在 `index.html`，没有独立的 JS 文件和构建步骤
 - 后端不做持久化，无数据库
-- 适配过的特殊站点：Substack、BBC（懒加载）、newsletter.semianalysis.com
+- 站点专项逻辑集中在预处理阶段，遇到新站点提取不对时先看那里
+
+## 适配过的特殊站点
+
+| 站点 | 症状 | 对应处理 |
+|---|---|---|
+| Substack（含 newsletter.semianalysis.com） | 图片是懒加载占位图，substackcdn URL 损坏 | 从 `data-attrs` 提取 S3 原图 URL；修复 `<picture>` 里损坏的 `srcset` |
+| BBC | 正文整段丢失——11 个推荐卡片标题被子标题保护逻辑挤进同一个容器，反而把它撑成了 Readability 眼里的最佳候选 | 子标题保护跳过链接标题和导航/推荐区块里的标题，且一个段落只接收一个标题；灰色占位图在去重之前先删掉 |
+| snexplores.org | 提出来的是一整页名词解释——文末的 Power Words 术语表约 7900 字符，比 5500 字符的正文还长，被 Readability 当成了正文；它的 class `article-footer__power-words` 里带着 "article"，正好命中 Readability 的豁免规则，自带的 `unlikelyCandidates` 拦不住 | 预处理第一步就移除附属区块；文章 `<header>` 里的头图不再被当成导航图标滤掉 |
