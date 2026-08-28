@@ -96,6 +96,61 @@ app.get('/api/read', async (req, res) => {
         const dom = new JSDOM(htmlContent, { url: resolvedUrl });
         const doc = dom.window.document;
 
+        // 2.2 移除正文周边的附属区块
+        // Readability 只按文字量给容器打分，一旦附属块比正文还长就会整段选错：
+        // snexplores.org 的文章末尾挂着一个 Power Words 术语表（40 个词条、约 7900 字符），
+        // 比正文本身（约 5500 字符）还长，结果被当成了正文；而它的 class
+        // "article-footer__power-words" 里带着 "article"，正好命中 Readability
+        // 的豁免规则，它自带的 unlikelyCandidates 拦不住。
+        // 放在克隆 pristineDoc 之前：这一步只做减法，兜底路径同样需要一份干净的文档。
+        {
+            const noiseScope = doc.querySelector('article, main, [role="main"]') || doc.body;
+
+            // 正文锚点：先用 meta description 的开头去定位正文首段，定位不到就退而取最长的段落。
+            // 附属块里的段落都很碎（术语条目、推荐语、分享按钮），最长段落落在正文里是相当稳的假设。
+            const paragraphs = [...noiseScope.querySelectorAll('p')];
+            const descMeta = doc.querySelector('meta[property="og:description"], meta[name="description"]');
+            const descHead = ((descMeta && descMeta.getAttribute('content')) || '').trim().substring(0, 40);
+            const anchorP =
+                (descHead.length >= 20 && paragraphs.find(p => p.textContent.includes(descHead))) ||
+                paragraphs.reduce((longest, p) =>
+                    p.textContent.trim().length > (longest ? longest.textContent.trim().length : 0) ? p : longest, null);
+
+            // 术语表 / 相关阅读 / 推荐轮播 / 分享 / 订阅 / 评论这几类块的通用命名
+            const NOISE_BLOCK = new RegExp([
+                'power[-_]?words', 'glossar', 'newsletter', 'subscri', 'sign-?up', 'comment', 'share', 'social',
+                'related', 'recommend', 'read-?more', 'more-?stories', 'more-on', 'trending', 'popular',
+                'breadcrumb', 'author-?bio', 'promo', 'sidebar', 'widget', 'post-list', 'carousel', 'swiper', 'slider'
+            ].join('|'), 'i');
+
+            let removedBlocks = 0;
+            const dropBlock = el => {
+                // 含正文锚点的元素一律不动；已随父节点一起摘掉的直接跳过
+                if (!el.isConnected || el === noiseScope || el.contains(anchorP)) return;
+                el.parentNode.removeChild(el);
+                removedBlocks++;
+            };
+
+            // 标签比 class 可靠：正文不会长在 <footer> / <aside> 里
+            noiseScope.querySelectorAll('footer, aside').forEach(dropBlock);
+            // 再用 class/id 关键词兜住那些用 <div> 拼出来的同类区块
+            noiseScope.querySelectorAll('[class], [id]').forEach(el => {
+                // 先剥掉布局修饰词再匹配：header 的 "with-sidebar" 说的是自己旁边有侧栏，
+                // 它本身是正文头部（文章头图就在里面），不是侧栏
+                const key = `${el.getAttribute('class') || ''} ${el.id || ''}`
+                    .replace(/\b(with|has|no|without)-[\w-]*/g, ' ');
+                if (NOISE_BLOCK.test(key)) dropBlock(el);
+            });
+
+            if (removedBlocks > 0) {
+                console.log(`[附属区块] 移除了 ${removedBlocks} 个正文外的区块（术语表/相关阅读/分享/订阅等）`);
+            }
+        }
+
+        // 留一份未经预处理的副本作为兜底：下面的预处理都是启发式的，
+        // 在没适配过的站点上有可能把 Readability 引到错误的容器上（正文整段丢失）
+        const pristineDoc = doc.cloneNode(true);
+
         // 2.5 预处理：解析 CSS 样式，保留通过 CSS 类设置的斜体/粗体
         // 这是通用的解决方案，适用于任何使用 CSS 类来设置样式的网站
         
@@ -390,22 +445,48 @@ app.get('/api/read', async (req, res) => {
         // 3.5 在 Readability 处理前，保护文章中的子标题（段落标题）
         // Readability 可能会移除被 div 包裹的 h1/h2/h3 等标题
         const articleContainer = doc.querySelector('article, main, [role="main"], .post-content, .body-markup') || doc.body;
-        
+
+        // 只保护"正文里的"标题。导航栏、推荐卡片、相关阅读里的标题必须跳过：
+        // 它们数量多且往往找不到相邻段落，会被兜底逻辑一股脑塞进同一个容器，
+        // 反而把那个容器喂成 Readability 眼里的最佳候选，导致真正的正文被丢弃
+        // （BBC 文章页就是这种情况：11 个推荐卡片标题挤进了同一个 card-text-wrapper）
+        const NON_ARTICLE_CONTAINER = 'nav, aside, header, footer, [role="navigation"], ' +
+            '[role="complementary"], [data-component="links-block"], ' +
+            '[class*="card"], [class*="promo"], [class*="related"], [class*="recommend"], ' +
+            '[data-testid*="card"]';
+        // 标题还要多排除一条：<a> 里的标题必然是链接卡片，不是正文子标题
+        // （图片不能用这条——正文配图经常被 <a> 包起来点开看大图）
+        const NON_ARTICLE_HEADING = `a, ${NON_ARTICLE_CONTAINER}`;
+
+        // 页面标题：正文里再插一份就成了重复标题（前端已经单独渲染 title）
+        const pageTitleKey = (() => {
+            const ogTitle = doc.querySelector('meta[property="og:title"]');
+            const raw = (ogTitle && ogTitle.getAttribute('content')) || doc.title || '';
+            return raw.toLowerCase().replace(/[^a-z0-9一-龥]/g, '');
+        })();
+
         // 找到文章中所有的子标题（h1-h4），将它们"提升"到更容易被 Readability 保留的位置
         const subHeadings = articleContainer.querySelectorAll('h1, h2, h3, h4');
+        const usedFallbackTargets = new Set();
         let protectedHeadingCount = 0;
-        
+
         subHeadings.forEach((heading, index) => {
             // 跳过空标题
             const text = heading.textContent.trim();
             if (!text || text.length === 0) return;
-            
+
+            // 跳过链接标题 / 导航与推荐区块里的标题
+            if (heading.closest(NON_ARTICLE_HEADING)) return;
+
+            // 跳过与页面标题相同的标题
+            if (pageTitleKey && text.toLowerCase().replace(/[^a-z0-9一-龥]/g, '') === pageTitleKey) return;
+
             // 检查标题是否被多层 div 包裹（这种情况 Readability 可能会移除）
             const parent = heading.parentElement;
             if (!parent) return;
-            
+
             const parentTag = parent.tagName.toLowerCase();
-            
+
             // 如果标题的父元素是 div 且不是 article/main/section
             // 则创建一个"保护性"的结构
             if (['div', 'span'].includes(parentTag)) {
@@ -435,22 +516,25 @@ app.get('/api/read', async (req, res) => {
                     nextP.parentNode.insertBefore(newHeading, nextP);
                     protectedHeadingCount++;
                 } else {
-                    // 找不到后面的段落，尝试找更广泛的范围
-                    // 在 articleContainer 中找到合适的位置
-                    const allParagraphs = articleContainer.querySelectorAll('p');
+                    // 找不到相邻段落，退一步在标题所属的内容块里找
+                    // 限定在最近的内容块内，且一个段落只接收一个标题，
+                    // 避免多个标题堆到同一处、把无关容器撑成最佳候选
+                    const scope = heading.closest('article, section, [class*="body"], [class*="content"], [class*="post"]')
+                        || articleContainer;
                     let targetP = null;
-                    
+
                     // 找到第一个在当前标题之后的段落
                     // DOCUMENT_POSITION_FOLLOWING = 4
-                    for (const p of allParagraphs) {
+                    for (const p of scope.querySelectorAll('p')) {
                         // 使用 compareDocumentPosition 判断位置关系
-                        if (heading.compareDocumentPosition(p) & 4) {
+                        if ((heading.compareDocumentPosition(p) & 4) && !usedFallbackTargets.has(p)) {
                             targetP = p;
                             break;
                         }
                     }
-                    
+
                     if (targetP && targetP.parentNode) {
+                        usedFallbackTargets.add(targetP);
                         targetP.parentNode.insertBefore(newHeading, targetP);
                         protectedHeadingCount++;
                     }
@@ -467,7 +551,13 @@ app.get('/api/read', async (req, res) => {
         function isValidContentImage(img) {
             const src = img.getAttribute('src') || '';
             if (!src || !src.startsWith('http')) return false;
-            
+
+            // 排除推荐卡片/导航里的缩略图：锚定它们会让 4.5 把一堆无关小图补到正文末尾。
+            // 例外是正文容器自己的 <header>——文章头图就放在那里，它不是页面导航
+            const noiseAncestor = img.closest(NON_ARTICLE_CONTAINER);
+            if (noiseAncestor &&
+                !(noiseAncestor.tagName === 'HEADER' && articleContainer.contains(noiseAncestor))) return false;
+
             // 排除占位图
             if (src.includes('grey-placehold') || src.includes('placeholder') || src.includes('data:')) return false;
             
@@ -556,6 +646,11 @@ app.get('/api/read', async (req, res) => {
         
         // 收集所有需要锚定的图片
         const processedSrcs = new Set();
+        // 正文首段之前的图片是文章头图。Readability 常常连着 <header> 一起丢掉，
+        // 4.5 再补回来时得放到正文开头——追加到末尾就成了文不对图
+        const heroSrcs = new Set();
+        const firstBodyP = [...articleContainer.querySelectorAll('p')]
+            .find(p => p.textContent.trim().length > 80);
         let anchoredCount = 0;
         
         // 按 DOM 顺序获取所有图片
@@ -567,6 +662,14 @@ app.get('/api/read', async (req, res) => {
             const src = img.getAttribute('src');
             if (processedSrcs.has(src)) return;
             processedSrcs.add(src);
+
+            // 文章 <header> 里的图必然是头图；否则看它是不是排在正文首段之前
+            // （DOCUMENT_POSITION_FOLLOWING = 4：首段在图片之后）
+            const ownHeader = img.closest('header');
+            if ((ownHeader && articleContainer.contains(ownHeader)) ||
+                (firstBodyP && (img.compareDocumentPosition(firstBodyP) & 4))) {
+                heroSrcs.add(src);
+            }
             
             // 检查图片是否已经在段落内
             const parentP = img.closest('p, h1, h2, h3, h4, h5, h6, li');
@@ -622,7 +725,18 @@ app.get('/api/read', async (req, res) => {
 
         // 4. 使用 Readability 提取正文
         const reader = new Readability(doc);
-        const article = reader.parse();
+        let article = reader.parse();
+
+        // 4.1 兜底：拿未经预处理的副本再提一次，如果预处理版的正文明显更短，
+        // 说明预处理把 Readability 带偏了，改用原始版本
+        // （预处理只会往正文里补标题和图片，正常情况下不该变短）
+        const pristineArticle = new Readability(pristineDoc).parse();
+        const textLen = a => (a && a.textContent ? a.textContent.trim().length : 0);
+
+        if (textLen(pristineArticle) > textLen(article) * 2) {
+            console.log(`[兜底] 预处理后正文只有 ${textLen(article)} 字符，原始提取有 ${textLen(pristineArticle)} 字符，改用原始提取结果`);
+            article = pristineArticle;
+        }
 
         if (!article) {
             return res.status(500).json({ error: 'Failed to parse content' });
@@ -665,27 +779,58 @@ app.get('/api/read', async (req, res) => {
         });
         
         if (missingImages.length > 0) {
-            console.log(`[图片补充] 还有 ${missingImages.length} 个图片未被保留，添加到末尾`);
+            console.log(`[图片补充] 还有 ${missingImages.length} 个图片未被保留，补回正文（头图 ${missingImages.filter(src => heroSrcs.has(src)).length} 个放开头）`);
+            let prependHtml = '';
             let appendHtml = '';
             missingImages.forEach(src => {
-                appendHtml += `<figure style="margin: 20px 0;"><img src="${src}" style="max-width: 100%; height: auto;"></figure>`;
+                const figure = `<figure style="margin: 20px 0;"><img src="${src}" style="max-width: 100%; height: auto;"></figure>`;
+                if (heroSrcs.has(src)) {
+                    prependHtml += figure;
+                } else {
+                    appendHtml += figure;
+                }
             });
-            articleContent += appendHtml;
+            articleContent = prependHtml + articleContent + appendHtml;
         }
 
-        // 4.7 去重：图片锚定会克隆 figure、标题保护会克隆 heading，原位置和新位置可能同时被 Readability 保留
+        // 4.7 输出清理：去重 + 去掉正文里的噪音（占位图、图片来源署名、作者/时间戳块、空壳元素）
         {
             const tempDom = new JSDOM(`<div id="root">${articleContent}</div>`);
             const root = tempDom.window.document.getElementById('root');
             let removedImgs = 0;
             let removedHeadings = 0;
+            let removedNoise = 0;
+            const drop = el => {
+                if (el && el.parentNode) {
+                    el.parentNode.removeChild(el);
+                    removedNoise++;
+                }
+            };
+
+            // (a) 占位图：懒加载网站会在真图旁边放一张灰色占位图，正文里就是一块空白。
+            //     必须赶在去重之前删掉——所有占位图共用同一个 src，去重会把它们当成
+            //     "重复图片"，进而把整个 figure（连同里面的正文图）一起删掉
+            root.querySelectorAll('img').forEach(img => {
+                const src = img.getAttribute('src') || '';
+                const ariaLabel = img.getAttribute('aria-label') || '';
+                const isPlaceholder = !src
+                    || src.startsWith('data:')
+                    || /placehold|grey-placehold|blank\.(gif|png)|spacer\.(gif|png)/i.test(src)
+                    || /unavailable/i.test(ariaLabel);
+                if (isPlaceholder) drop(img.closest('picture') || img);
+            });
 
             const seenSrcs = new Set();
             root.querySelectorAll('img').forEach(img => {
                 const src = img.getAttribute('src');
-                if (!src) return;
+                if (!src || !img.parentNode) return;
                 if (seenSrcs.has(src)) {
-                    const target = img.closest('figure, picture') || img;
+                    // 只有 figure 里的图片全是重复的，才连 figure 一起删（保住图注）；
+                    // 否则只删这一张，别牵连同一个 figure 里的其他图
+                    const fig = img.closest('figure, picture');
+                    const sole = fig && [...fig.querySelectorAll('img')]
+                        .every(other => seenSrcs.has(other.getAttribute('src')));
+                    const target = sole ? fig : img;
                     if (target.parentNode) {
                         target.parentNode.removeChild(target);
                         removedImgs++;
@@ -710,6 +855,55 @@ app.get('/api/read', async (req, res) => {
 
             if (removedImgs > 0 || removedHeadings > 0) {
                 console.log(`[去重] 移除重复图片 ${removedImgs} 个，重复标题 ${removedHeadings} 个`);
+            }
+
+            // (b) 图片来源署名：网站常把来源塞进 alt 开头，同时在图片旁边再显示一遍
+            //     （BBC 的 alt="Ben Wodecki A firefighter in the aisle..." + <span>Ben Wodecki</span>）
+            root.querySelectorAll('img[alt]').forEach(img => {
+                const alt = (img.getAttribute('alt') || '').trim();
+                if (!alt) return;
+                // 限定在图片自己的容器内找，别扩散到外层大 div 误伤正文
+                const scope = img.closest('figure') || img.parentElement;
+                if (!scope) return;
+                scope.querySelectorAll('span, div, p, small, cite, b, strong').forEach(el => {
+                    if (el.querySelector('img') || el.closest('figcaption')) return;
+                    const text = (el.textContent || '').trim();
+                    // 只删短标签，且必须是 alt 的真前缀（整段 alt 说明是图片描述，要留）
+                    if (!text || text.length > 60 || text.length >= alt.length) return;
+                    if (alt.startsWith(text)) drop(el);
+                });
+            });
+
+            // (c) 作者/时间戳块：前端已经单独渲染 title 和 byline，正文里重复一遍是噪音
+            root.querySelectorAll('[class*="byline"], [data-component*="byline"], [data-testid*="byline"]').forEach(drop);
+            root.querySelectorAll('time').forEach(t => {
+                // 只删独占一行的时间戳，句子中间的 <time> 要留
+                const holder = t.parentElement;
+                if (holder && (holder.textContent || '').trim() === (t.textContent || '').trim()) {
+                    drop(holder);
+                } else {
+                    drop(t);
+                }
+            });
+
+            // (d) 空壳元素：上面删完会留下一堆空容器，加上 Readability 本来就会产出空 <p>
+            //     反复扫描，直到没有新的空元素（删掉内层后外层才变空）
+            for (let pass = 0; pass < 5; pass++) {
+                const before = removedNoise;
+                root.querySelectorAll('p, div, span, figure, section, ul, ol, li, small, cite').forEach(el => {
+                    if (!el.parentNode) return;
+                    if ((el.textContent || '').trim()) return;
+                    if (el.querySelector('img, br, hr, video, audio, iframe, svg')) return;
+                    drop(el);
+                });
+                if (removedNoise === before) break;
+            }
+
+            if (removedNoise > 0) {
+                console.log(`[噪音清理] 移除 ${removedNoise} 个占位图/署名/时间戳/空元素`);
+            }
+
+            if (removedImgs > 0 || removedHeadings > 0 || removedNoise > 0) {
                 articleContent = root.innerHTML;
             }
         }
