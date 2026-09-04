@@ -72,3 +72,4 @@ npm run build      # electron-builder 打包（Mac，x64 + arm64 DMG）
 | Substack（含 newsletter.semianalysis.com） | 图片是懒加载占位图，substackcdn URL 损坏 | 从 `data-attrs` 提取 S3 原图 URL；修复 `<picture>` 里损坏的 `srcset` |
 | BBC | 正文整段丢失——11 个推荐卡片标题被子标题保护逻辑挤进同一个容器，反而把它撑成了 Readability 眼里的最佳候选 | 子标题保护跳过链接标题和导航/推荐区块里的标题，且一个段落只接收一个标题；灰色占位图在去重之前先删掉 |
 | snexplores.org | 提出来的是一整页名词解释——文末的 Power Words 术语表约 7900 字符，比 5500 字符的正文还长，被 Readability 当成了正文；它的 class `article-footer__power-words` 里带着 "article"，正好命中 Readability 的豁免规则，自带的 `unlikelyCandidates` 拦不住 | 预处理第一步就移除附属区块；文章 `<header>` 里的头图不再被当成导航图标滤掉 |
+| newsfilecorp.com（通稿分发页） | 正文配图跑到了文章最后——图片包在"点击查看大图"的 `<a>` 链接里，所在段落链接密度过高被 Readability 当噪音整段删掉；同时文末的 1x1 埋点图（`class="tracker"`, `src` 是 `api.*` 域名）被当成正文图片保留了下来 | 图片虽已在 `<p>` 内，但该段落链接密度过高时仍额外补一个锚点兜底，保住原始位置；`isValidContentImage` 与输出清理阶段都排除 `class` 含 track/pixel/beacon 或 `src` 以 `https://api.` 开头的埋点图 |

@@ -26,10 +26,12 @@ function fetchWithHeadlessBrowser(url) {
         });
 
         let settled = false;
+        let quietTimer = null;
         function settle(fn, val) {
             if (settled) return;
             settled = true;
             clearTimeout(timer);
+            clearTimeout(quietTimer);
             win.destroy();
             fn(val);
         }
@@ -38,15 +40,26 @@ function fetchWithHeadlessBrowser(url) {
             settle(reject, new Error('Page load timeout (30s)'));
         }, 30000);
 
-        win.webContents.on('dom-ready', async () => {
-            try {
-                const html = await win.webContents.executeJavaScript('document.documentElement.outerHTML');
-                const finalUrl = win.webContents.getURL();
-                settle(resolve, { html, finalUrl });
-            } catch (e) {
-                settle(reject, e);
-            }
-        });
+        // AWS WAF 这类反爬挑战会先加载一个跑校验脚本的挑战页，脚本跑完再 reload/跳转到
+        // 真正的页面——dom-ready 只在第一次（挑战页本身）触发，抓早了拿到的是空壳。
+        // 改成等导航"安静"下来再抓 HTML：每次发生新导航就把倒计时重置，直到 1.5s
+        // 内没有新导航，才认为页面真正稳定，此时抓到的才是挑战通过后的最终内容
+        function captureWhenQuiet() {
+            clearTimeout(quietTimer);
+            quietTimer = setTimeout(async () => {
+                try {
+                    const html = await win.webContents.executeJavaScript('document.documentElement.outerHTML');
+                    const finalUrl = win.webContents.getURL();
+                    settle(resolve, { html, finalUrl });
+                } catch (e) {
+                    settle(reject, e);
+                }
+            }, 1500);
+        }
+
+        win.webContents.on('did-navigate', captureWhenQuiet);
+        win.webContents.on('did-navigate-in-page', captureWhenQuiet);
+        win.webContents.on('did-finish-load', captureWhenQuiet);
 
         win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
             if (isMainFrame) {
@@ -81,6 +94,17 @@ app.get('/api/read', async (req, res) => {
                 }
             });
             htmlContent = response.data;
+
+            // 反爬挑战页：状态码是 2xx，axios 不会当成失败，但正文是空的或只有寥寥数字节
+            // （例如 AWS WAF 对自动化请求返回 202 + x-amzn-waf-action: challenge，无正文），
+            // 得自己识别，回退到能跑 JS、更像真实用户的浏览器模式
+            const contentLen = htmlContent ? String(htmlContent).trim().length : 0;
+            if (contentLen < 200 && ElectronBrowserWindow) {
+                console.log(`[Fetch] axios 拿到的内容像是反爬挑战页（长度 ${contentLen}），切换到浏览器模式...`);
+                const result = await fetchWithHeadlessBrowser(targetUrl);
+                htmlContent = result.html;
+                resolvedUrl = result.finalUrl;
+            }
         } catch (axiosErr) {
             if (ElectronBrowserWindow) {
                 console.log(`[Fetch] axios 失败 (${axiosErr.message})，切换到浏览器模式...`);
@@ -563,7 +587,14 @@ app.get('/api/read', async (req, res) => {
             
             // 排除明显的小图标（通过 URL 判断）
             if (src.includes('/icon') || src.includes('favicon') || src.includes('avatar') || src.includes('logo')) return false;
-            
+
+            // 排除埋点/统计像素图：newsfilecorp 这类通稿分发页会在正文末尾埋一个
+            // <img class="tracker" src="https://api.xxx/newsinfo/.../">，没有可见尺寸，
+            // 靠 class 名或 API 风格的 src 路径识别，避免它被当成正文配图保留下来
+            const className = img.getAttribute('class') || '';
+            if (/track|pixel|beacon/i.test(className)) return false;
+            if (/^https?:\/\/api\./i.test(src)) return false;
+
             // 排除非常小的图片（通过属性判断）
             const width = parseInt(img.getAttribute('width') || '0');
             const height = parseInt(img.getAttribute('height') || '0');
@@ -674,8 +705,15 @@ app.get('/api/read', async (req, res) => {
             // 检查图片是否已经在段落内
             const parentP = img.closest('p, h1, h2, h3, h4, h5, h6, li');
             if (parentP) {
-                // 已经在段落内，不需要处理
-                return;
+                // "点击查看大图"这类配图段落——图片包在 <a> 里，段落里几乎全是链接文字，
+                // 链接密度过高会被 Readability 当噪音整段删掉，图片跟着丢失，
+                // 因此仍需在旁边补一个锚点兜底；真正的正文段落（链接密度低）维持不处理
+                const linkTextLen = [...parentP.querySelectorAll('a')]
+                    .reduce((sum, a) => sum + a.textContent.trim().length, 0);
+                const ownTextLen = parentP.textContent.trim().length;
+                const highLinkDensity = parentP.tagName.toLowerCase() === 'p' &&
+                    ownTextLen > 0 && linkTextLen / ownTextLen > 0.5;
+                if (!highLinkDensity) return;
             }
             
             // 获取图片容器（保留 figure 结构和 caption）
@@ -813,11 +851,16 @@ app.get('/api/read', async (req, res) => {
             root.querySelectorAll('img').forEach(img => {
                 const src = img.getAttribute('src') || '';
                 const ariaLabel = img.getAttribute('aria-label') || '';
+                const className = img.getAttribute('class') || '';
                 const isPlaceholder = !src
                     || src.startsWith('data:')
                     || /placehold|grey-placehold|blank\.(gif|png)|spacer\.(gif|png)/i.test(src)
                     || /unavailable/i.test(ariaLabel);
-                if (isPlaceholder) drop(img.closest('picture') || img);
+                // 埋点/统计像素图：newsfilecorp 这类通稿分发页会在正文里塞一个
+                // <img class="tracker" src="https://api.xxx/...">，本身不该出现在正文里
+                const isTrackingPixel = /track|pixel|beacon/i.test(className)
+                    || /^https?:\/\/api\./i.test(src);
+                if (isPlaceholder || isTrackingPixel) drop(img.closest('picture') || img);
             });
 
             const seenSrcs = new Set();
